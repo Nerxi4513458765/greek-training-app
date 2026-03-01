@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Чертог тренировок</title>
+
+    <!-- Подключаем Telegram Web App SDK (ОБЯЗАТЕЛЬНО) -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- Шрифты Google -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Cormorant:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+
+    <!-- Наши стили -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Затемняющий overlay для атмосферы -->
+    <div class="overlay"></div>
+
+    <!-- Основной контейнер -->
+    <div class="container">
+
+        <!-- Шапка с античным храмом -->
+        <header class="header">
+            <div class="header-top">
+                <h1 class="title">
+                    <span class="title-main">ΧΑΔΕΣ</span>
+                    <span class="title-sub">ТРЕНИРОВКИ</span>
+                </h1>
+                <div class="olympus-glow"></div>
+            </div>
+            <p class="epigraph">
+                "Ἀεὶ κολοιὸς παρὰ κολοιῷ"<br>
+                <span class="epigraph-trans">(Ворон к ворону садится)</span>
+            </p>
+        </header>
+
+        <!-- Основное меню (карточки разделов) -->
+        <nav class="menu-grid">
+            <div class="menu-card" data-section="today">
+                <div class="card-icon">⚔️</div>
+                <h3>Подвиг дня</h3>
+                <p>Сегодняшнее испытание</p>
+            </div>
+
+            <div class="menu-card" data-section="workout">
+                <div class="card-icon">🏛️</div>
+                <h3>Чертог</h3>
+                <p>Создать тренировку</p>
+            </div>
+
+            <div class="menu-card" data-section="history">
+                <div class="card-icon">📜</div>
+                <h3>Хроники</h3>
+                <p>История подвигов</p>
+            </div>
+
+            <div class="menu-card" data-section="oracle">
+                <div class="card-icon">🔮</div>
+                <h3>Оракул</h3>
+                <p>Мудрость богов</p>
+            </div>
+        </nav>
+
+        <!-- Динамический контент (меняется при клике) -->
+        <main id="content" class="content">
+            <!-- Сюда будет подгружаться контент -->
+            <div class="welcome-message">
+                <h2>Да начнутся испытания!</h2>
+                <p>Выбери раздел в меню выше, о смертный...</p>
+                <div class="scroll-decoration"></div>
+            </div>
+        </main>
+
+        <!-- Кнопка сохранения (появляется когда нужно) -->
+        <div class="action-bar" id="actionBar" style="display: none;">
+            <button class="btn-save" id="saveWorkoutBtn">
+                <span class="btn-icon">🏺</span>
+                Сохранить в анналы
+            </button>
+        </div>
+
+        <!-- Подвал -->
+        <footer class="footer">
+            <p>Σῶμα καὶ πνεῦμα — тело и дух</p>
+            <p class="footer-small">© 2024 | Чертог Аида</p>
+        </footer>
+    </div>
+
+    <!-- Модальное окно для добавления упражнений -->
+    <div class="modal" id="exerciseModal">
+        <div class="modal-content">
+            <h2 class="modal-title">➕ Новый подвиг</h2>
+
+            <form id="exerciseForm">
+                <div class="form-group">
+                    <label>Название упражнения</label>
+                    <input type="text" id="exName" placeholder="Например: Жим легиона" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Подходы</label>
+                        <input type="number" id="exSets" min="1" max="10" value="3">
+                    </div>
+                    <div class="form-group">
+                        <label>Повторения</label>
+                        <input type="number" id="exReps" min="1" max="100" value="10">
+                    </div>
+                    <div class="form-group">
+                        <label>Вес (кг)</label>
+                        <input type="number" id="exWeight" min="0" step="2.5" value="50">
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-modal-cancel" id="cancelModal">Отмена</button>
+                    <button type="submit" class="btn-modal-save">Добавить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Подключаем JavaScript -->
+    <script src="app.js"></script>
+</body>
+</html>
+
