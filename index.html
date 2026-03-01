@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Чертог тренировок</title>
 
-    <!-- Подключаем Telegram Web App SDK (ОБЯЗАТЕЛЬНО) -->
+    <!-- Подключаем Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
     <!-- Шрифты Google -->
@@ -13,24 +13,536 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Cormorant:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 
-    <!-- Наши стили -->
-    <link rel="stylesheet" href="style.css">
+    <!-- Базовые стили -->
+    <style>
+        /* Сброс стилей */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* Основные переменные */
+        :root {
+            --primary-dark: #0a0806;
+            --secondary-dark: #1a1510;
+            --bronze: #b87333;
+            --gold: #e6c87c;
+            --old-paper: #e0d7c6;
+            --blood: #6b2d2d;
+            --marble-gray: #2a2520;
+            --spartan-red: #8b1e1e;
+        }
+
+        /* Базовые стили */
+        body {
+            font-family: 'Cormorant', serif;
+            background: var(--primary-dark);
+            color: var(--old-paper);
+            min-height: 100vh;
+            position: relative;
+            line-height: 1.6;
+            padding: 16px;
+        }
+
+        /* Затемняющий overlay */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 20% 30%, rgba(100, 50, 20, 0.2) 0%, transparent 40%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Контейнер */
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Шапка */
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+            padding: 20px 0;
+            border-bottom: 2px solid var(--bronze);
+            position: relative;
+        }
+
+        .header::before,
+        .header::after {
+            content: "☥";
+            position: absolute;
+            top: 10px;
+            font-size: 40px;
+            color: var(--bronze);
+            opacity: 0.3;
+        }
+
+        .header::before {
+            left: 10px;
+        }
+
+        .header::after {
+            right: 10px;
+            transform: rotate(180deg);
+        }
+
+        .title-main {
+            font-family: 'Cinzel', serif;
+            font-size: 42px;
+            font-weight: 900;
+            color: var(--gold);
+            text-shadow: 0 0 20px #b87c3a;
+            letter-spacing: 4px;
+            display: block;
+            line-height: 1.2;
+        }
+
+        .title-sub {
+            font-family: 'Cinzel', serif;
+            font-size: 20px;
+            color: var(--old-paper);
+            letter-spacing: 2px;
+            opacity: 0.9;
+            display: block;
+        }
+
+        .epigraph {
+            margin-top: 16px;
+            font-size: 16px;
+            font-style: italic;
+            color: var(--bronze);
+        }
+
+        .epigraph-trans {
+            font-size: 12px;
+            color: var(--old-paper);
+            opacity: 0.6;
+            display: block;
+        }
+
+        /* Меню-сетка */
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin: 24px 0;
+        }
+
+        .menu-card {
+            background: rgba(26, 21, 16, 0.8);
+            backdrop-filter: blur(5px);
+            border: 1px solid var(--bronze);
+            border-radius: 12px;
+            padding: 16px 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+
+        .menu-card:hover {
+            transform: translateY(-3px);
+            border-color: var(--gold);
+            box-shadow: 0 8px 25px rgba(184, 115, 51, 0.3);
+            background: rgba(42, 37, 32, 0.9);
+        }
+
+        .menu-card.active {
+            border-color: var(--gold);
+            background: linear-gradient(145deg, #2a241e, #1a1510);
+            box-shadow: 0 0 20px var(--bronze);
+        }
+
+        .card-icon {
+            font-size: 40px;
+            margin-bottom: 8px;
+            filter: drop-shadow(0 0 5px var(--bronze));
+        }
+
+        .menu-card h3 {
+            font-family: 'Cinzel', serif;
+            font-size: 16px;
+            margin-bottom: 4px;
+            color: var(--gold);
+        }
+
+        .menu-card p {
+            font-size: 11px;
+            color: var(--old-paper);
+            opacity: 0.8;
+        }
+
+        /* Контентная область */
+        .content {
+            background: rgba(10, 8, 6, 0.7);
+            backdrop-filter: blur(5px);
+            border: 1px solid var(--marble-gray);
+            border-radius: 20px;
+            padding: 20px;
+            margin: 20px 0;
+            min-height: 300px;
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.8), 0 5px 20px black;
+        }
+
+        /* Кнопка сохранения */
+        .action-bar {
+            position: sticky;
+            bottom: 16px;
+            margin: 20px 0;
+        }
+
+        .btn-save {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(145deg, #2c4a3b, #1a3528);
+            border: 2px solid #7f9a6b;
+            color: #e3f0da;
+            font-family: 'Cinzel', serif;
+            font-size: 20px;
+            font-weight: 700;
+            border-radius: 50px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 0 #1a3528, 0 10px 20px black;
+        }
+
+        .btn-save:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 0 #1a3528, 0 15px 30px black;
+            background: linear-gradient(145deg, #3a5e4b, #2a4538);
+        }
+
+        .btn-save:active {
+            transform: translateY(5px);
+            box-shadow: 0 2px 0 #1a3528;
+        }
+
+        .btn-icon {
+            font-size: 24px;
+        }
+
+        /* Модальное окно */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #1a1510;
+            border: 2px solid var(--bronze);
+            border-radius: 24px;
+            padding: 24px;
+            max-width: 500px;
+            width: 100%;
+            position: relative;
+            animation: modalAppear 0.3s ease;
+        }
+
+        @keyframes modalAppear {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .modal-title {
+            font-family: 'Cinzel', serif;
+            color: var(--gold);
+            text-align: center;
+            margin-bottom: 24px;
+            font-size: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 4px;
+            color: var(--gold);
+            font-size: 14px;
+            letter-spacing: 1px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            background: #0a0806;
+            border: 1px solid var(--bronze);
+            border-radius: 8px;
+            color: var(--old-paper);
+            font-size: 16px;
+            transition: all 0.3s ease;
+            font-family: 'Cormorant', serif;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--gold);
+            box-shadow: 0 0 15px var(--bronze);
+        }
+
+        input::placeholder {
+            color: #4a3f35;
+            font-style: italic;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .btn-modal-cancel, .btn-modal-save {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Cinzel', serif;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-modal-cancel {
+            background: #2a241e;
+            color: var(--old-paper);
+            border: 1px solid var(--marble-gray);
+        }
+
+        .btn-modal-cancel:hover {
+            background: #3a342e;
+        }
+
+        .btn-modal-save {
+            background: linear-gradient(145deg, #b87333, #8b5a2b);
+            color: var(--primary-dark);
+            border: 1px solid var(--gold);
+        }
+
+        .btn-modal-save:hover {
+            background: linear-gradient(145deg, #c98343, #9b6a3b);
+            transform: translateY(-2px);
+        }
+
+        /* Футер */
+        .footer {
+            text-align: center;
+            margin-top: 32px;
+            padding-top: 16px;
+            border-top: 1px solid var(--marble-gray);
+            font-size: 14px;
+            color: var(--old-paper);
+            opacity: 0.7;
+        }
+
+        .footer-small {
+            font-size: 10px;
+            margin-top: 4px;
+            opacity: 0.5;
+        }
+
+        /* Стили для динамического контента (будут дополняться из JS) */
+        .section-title {
+            font-family: 'Cinzel', serif;
+            color: var(--gold);
+            margin-bottom: 20px;
+            font-size: 22px;
+            text-align: center;
+        }
+
+        .workout-name-section {
+            margin-bottom: 24px;
+        }
+
+        .workout-label {
+            display: block;
+            color: var(--gold);
+            margin-bottom: 8px;
+            font-size: 14px;
+            letter-spacing: 1px;
+        }
+
+        .workout-name-input {
+            width: 100%;
+            padding: 12px;
+            background: #1a1510;
+            border: 2px solid var(--bronze);
+            border-radius: 8px;
+            color: var(--old-paper);
+            font-size: 18px;
+            font-family: 'Cinzel', serif;
+        }
+
+        .workout-name-input:focus {
+            outline: none;
+            border-color: var(--gold);
+            box-shadow: 0 0 15px var(--bronze);
+        }
+
+        .exercises-list {
+            margin-bottom: 20px;
+        }
+
+        .exercise-item {
+            background: linear-gradient(90deg, #2a241e, #1a1510);
+            border-left: 4px solid var(--bronze);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .exercise-name {
+            font-family: 'Cinzel', serif;
+            color: var(--gold);
+            font-size: 16px;
+            flex: 1;
+        }
+
+        .exercise-details {
+            display: flex;
+            gap: 8px;
+            margin: 0 12px;
+        }
+
+        .exercise-sets, .exercise-weight {
+            background: #0a0806;
+            padding: 4px 8px;
+            border-radius: 20px;
+            border: 1px solid var(--bronze);
+            font-size: 14px;
+        }
+
+        .remove-exercise {
+            background: none;
+            border: none;
+            color: var(--blood);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0 8px;
+            transition: all 0.3s;
+        }
+
+        .remove-exercise:hover {
+            color: #b22e2e;
+            transform: scale(1.2);
+        }
+
+        .add-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--bronze);
+            border: none;
+            border-radius: 8px;
+            color: var(--primary-dark);
+            font-family: 'Cinzel', serif;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 16px;
+            transition: all 0.3s;
+        }
+
+        .add-btn:hover {
+            background: #c98343;
+            transform: translateY(-2px);
+        }
+
+        .empty-message {
+            text-align: center;
+            color: var(--bronze);
+            padding: 30px;
+            font-style: italic;
+        }
+
+        /* Адаптация для мобильных */
+        @media (max-width: 480px) {
+            .title-main {
+                font-size: 32px;
+                letter-spacing: 2px;
+            }
+
+            .title-sub {
+                font-size: 16px;
+            }
+
+            .menu-grid {
+                gap: 8px;
+            }
+
+            .menu-card {
+                padding: 12px 4px;
+            }
+
+            .card-icon {
+                font-size: 32px;
+            }
+
+            .menu-card h3 {
+                font-size: 14px;
+            }
+
+            .content {
+                padding: 16px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+        }
+    </style>
 </head>
 <body>
-    <!-- Затемняющий overlay для атмосферы -->
     <div class="overlay"></div>
 
-    <!-- Основной контейнер -->
     <div class="container">
-
-        <!-- Шапка с античным храмом -->
+        <!-- Шапка -->
         <header class="header">
             <div class="header-top">
-                <h1 class="title">
-                    <span class="title-main">ΧΑΔΕΣ</span>
-                    <span class="title-sub">ТРЕНИРОВКИ</span>
-                </h1>
-                <div class="olympus-glow"></div>
+                <h1 class="title-main">ΧΑΔΕΣ</h1>
+                <span class="title-sub">ЧЕРТОГ ТРЕНИРОВОК</span>
             </div>
             <p class="epigraph">
                 "Ἀεὶ κολοιὸς παρὰ κολοιῷ"<br>
@@ -38,7 +550,7 @@
             </p>
         </header>
 
-        <!-- Основное меню (карточки разделов) -->
+        <!-- Меню навигации -->
         <nav class="menu-grid">
             <div class="menu-card" data-section="today">
                 <div class="card-icon">⚔️</div>
@@ -65,17 +577,12 @@
             </div>
         </nav>
 
-        <!-- Динамический контент (меняется при клике) -->
+        <!-- Динамический контент -->
         <main id="content" class="content">
-            <!-- Сюда будет подгружаться контент -->
-            <div class="welcome-message">
-                <h2>Да начнутся испытания!</h2>
-                <p>Выбери раздел в меню выше, о смертный...</p>
-                <div class="scroll-decoration"></div>
-            </div>
+            <!-- Сюда будет подгружаться контент через JS -->
         </main>
 
-        <!-- Кнопка сохранения (появляется когда нужно) -->
+        <!-- Кнопка сохранения -->
         <div class="action-bar" id="actionBar" style="display: none;">
             <button class="btn-save" id="saveWorkoutBtn">
                 <span class="btn-icon">🏺</span>
@@ -83,7 +590,7 @@
             </button>
         </div>
 
-        <!-- Подвал -->
+        <!-- Футер -->
         <footer class="footer">
             <p>Σῶμα καὶ πνεῦμα — тело и дух</p>
             <p class="footer-small">© 2024 | Чертог Аида</p>
@@ -93,25 +600,27 @@
     <!-- Модальное окно для добавления упражнений -->
     <div class="modal" id="exerciseModal">
         <div class="modal-content">
-            <h2 class="modal-title">➕ Новый подвиг</h2>
+            <h2 class="modal-title">➕ НОВЫЙ ПОДВИГ</h2>
 
             <form id="exerciseForm">
                 <div class="form-group">
-                    <label>Название упражнения</label>
-                    <input type="text" id="exName" placeholder="Например: Жим легиона" required>
+                    <label for="exName">Название упражнения</label>
+                    <input type="text" id="exName" placeholder="Например: Жим легиона" required autocomplete="off">
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Подходы</label>
-                        <input type="number" id="exSets" min="1" max="10" value="3">
+                        <label for="exSets">Подходы</label>
+                        <input type="number" id="exSets" min="1" max="20" value="3">
                     </div>
+
                     <div class="form-group">
-                        <label>Повторения</label>
+                        <label for="exReps">Повторения</label>
                         <input type="number" id="exReps" min="1" max="100" value="10">
                     </div>
+
                     <div class="form-group">
-                        <label>Вес (кг)</label>
+                        <label for="exWeight">Вес (кг)</label>
                         <input type="number" id="exWeight" min="0" step="2.5" value="50">
                     </div>
                 </div>
@@ -128,4 +637,3 @@
     <script src="app.js"></script>
 </body>
 </html>
-
