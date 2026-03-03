@@ -1,9 +1,15 @@
-// app.js - Полная версия с удалением тренировок
+// app.js - Полная версия с красивым интерфейсом и удалением тренировок
 
 // ========== ИНИЦИАЛИЗАЦИЯ TELEGRAM ==========
 const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
+
+// Настраиваем цвета под тему Telegram
+document.body.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#0a0806');
+document.body.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#e0d7c6');
+document.body.style.setProperty('--tg-theme-button-color', tg.themeParams.button_color || '#b87333');
+document.body.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color || '#0a0806');
 
 // ========== СОСТОЯНИЕ ПРИЛОЖЕНИЯ ==========
 const state = {
@@ -90,7 +96,6 @@ function sendWorkoutToBot(workoutData) {
 
 // ========== ФУНКЦИЯ ДЛЯ УДАЛЕНИЯ ТРЕНИРОВКИ ==========
 function deleteWorkout(workoutId) {
-    // Показываем подтверждение
     tg.showPopup({
         title: '⚠️ Удаление',
         message: 'Точно удалить эту тренировку?',
@@ -115,14 +120,12 @@ function deleteWorkout(workoutId) {
                 console.error('❌ Ошибка отправки команды удаления:', error);
             }
 
-            // Показываем сообщение
             tg.showPopup({
                 title: '✅ Удалено',
                 message: 'Тренировка удалена из хроник',
                 buttons: [{ type: 'ok' }]
             });
 
-            // Обновляем отображение
             showHistory();
         }
     });
@@ -163,15 +166,15 @@ function showSection(section) {
 function showWelcome() {
     contentEl.innerHTML = `
         <div class="welcome-message">
-            <h2>Да начнутся испытания, ${state.user.first_name}!</h2>
-            <p>Выбери раздел в меню выше, о смертный...</p>
+            <h2 class="welcome-title">Да начнутся испытания, ${state.user.first_name}!</h2>
+            <p class="welcome-text">Выбери раздел в меню выше, о смертный...</p>
             <div class="welcome-icon">🏛️</div>
         </div>
     `;
     actionBar.style.display = 'none';
 }
 
-// ========== ПОДВИГ ДНЯ ==========
+// ========== ПОДВИГ ДНЯ (КРАСИВЫЙ ИНТЕРФЕЙС) ==========
 function showTodayTrial() {
     const trials = [
         {
@@ -196,6 +199,22 @@ function showTodayTrial() {
             reward: '🦵 +40 силы ног',
             exercises: [
                 { name: 'Приседания со штангой', sets: 4, reps: 15, weight: 50 }
+            ]
+        },
+        {
+            name: 'Лук Одиссея',
+            description: 'Тяга верхнего блока 3×12',
+            reward: '🏹 +35 силы спины',
+            exercises: [
+                { name: 'Тяга верхнего блока', sets: 3, reps: 12, weight: 40 }
+            ]
+        },
+        {
+            name: 'Копьё Ахиллеса',
+            description: 'Жим лёжа 5×5',
+            reward: '🛡️ +50 силы груди',
+            exercises: [
+                { name: 'Жим штанги лёжа', sets: 5, reps: 5, weight: 60 }
             ]
         }
     ];
@@ -346,7 +365,7 @@ function showWorkoutCreator() {
     }
 }
 
-// ========== ИСТОРИЯ ТРЕНИРОВОК С КНОПКАМИ УДАЛЕНИЯ ==========
+// ========== ХРОНИКИ (КРАСИВЫЙ ИНТЕРФЕЙС + УДАЛЕНИЕ) ==========
 function showHistory() {
     if (state.history.length === 0) {
         contentEl.innerHTML = `
@@ -364,7 +383,7 @@ function showHistory() {
 
     let historyHtml = '<div class="history-scroll">';
 
-    // Группируем по датам (новые сверху)
+    // Группируем по датам
     const grouped = {};
     [...state.history].reverse().forEach(workout => {
         const date = new Date(workout.date).toLocaleDateString('ru-RU', {
@@ -413,9 +432,7 @@ function showHistory() {
                     </div>
                     <div class="history-footer">
                         <span class="history-count">${workout.exercises.length} упражнений</span>
-                        <button class="history-delete" onclick="deleteWorkout('${workout.id}')" title="Удалить">
-                            🗑️
-                        </button>
+                        <button class="history-delete" onclick="deleteWorkout('${workout.id}')" title="Удалить">🗑️</button>
                     </div>
                 </div>
             `;
@@ -454,13 +471,19 @@ function showHistory() {
     actionBar.style.display = 'none';
 }
 
-// ========== ОРАКУЛ ==========
+// ========== ОРАКУЛ (КРАСИВЫЙ ИНТЕРФЕЙС) ==========
 function showOracle() {
     const prophecies = [
         "«Сила приходит не от мышц, а от духа, закалённого испытаниями»",
         "«Тень героя длиннее его тела, если герой много тренируется»",
         "«Ахиллес был уязвим лишь в пятку. Найди свою пятку и укрепи её»",
-        "«Геракл начинал с одного камня. Ты начинаешь с одного подхода»"
+        "«Геракл начинал с одного камня. Ты начинаешь с одного подхода»",
+        "«Река Стикс течёт через каждого, кто не боится пота»",
+        "«Олимп не покоряется за один день. Нужны годы тренировок»",
+        "«Прометей принёс огонь. Ты принесёшь новые рекорды»",
+        "«Спартанец не спрашивает сколько, он спрашивает где»",
+        "«Даже Зевс когда-то был младенцем. Начни с малого»",
+        "«Тысячи павших героев завидуют твоему упорству»"
     ];
 
     const randomProphecy = prophecies[Math.floor(Math.random() * prophecies.length)];
@@ -564,10 +587,9 @@ menuCards.forEach(card => {
 loadFromStorage();
 showWelcome();
 
-// Делаем функцию удаления глобальной для доступа из HTML
+// Делаем функцию удаления глобальной
 window.deleteWorkout = deleteWorkout;
 
-// Приветственное сообщение
 setTimeout(() => {
     tg.showPopup({
         title: '🏛️ Добро пожаловать в Чертог!',
