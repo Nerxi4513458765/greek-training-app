@@ -1,22 +1,9 @@
-// app.js - Полноценное Mini App с названиями тренировок
+// app.js - Полная версия с удалением тренировок
 
 // ========== ИНИЦИАЛИЗАЦИЯ TELEGRAM ==========
 const tg = window.Telegram.WebApp;
-
-// Сообщаем Telegram, что приложение готово
 tg.ready();
-
-// Разворачиваем на весь экран
 tg.expand();
-
-// Настраиваем цвета под тему Telegram
-document.body.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#0a0806');
-document.body.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#e0d7c6');
-document.body.style.setProperty('--tg-theme-button-color', tg.themeParams.button_color || '#b87333');
-document.body.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color || '#0a0806');
-
-console.log('✅ Telegram Web App инициализирован');
-console.log('👤 Пользователь:', tg.initDataUnsafe?.user);
 
 // ========== СОСТОЯНИЕ ПРИЛОЖЕНИЯ ==========
 const state = {
@@ -43,14 +30,12 @@ const cancelModalBtn = document.getElementById('cancelModal');
 // ========== ЗАГРУЗКА СОХРАНЁННЫХ ДАННЫХ ==========
 function loadFromStorage() {
     try {
-        // Загружаем историю тренировок
         const savedHistory = localStorage.getItem(`workouts_${state.user.id}`);
         if (savedHistory) {
             state.history = JSON.parse(savedHistory);
             console.log(`📚 Загружено ${state.history.length} тренировок`);
         }
 
-        // Загружаем шаблоны
         const savedTemplates = localStorage.getItem(`templates_${state.user.id}`);
         if (savedTemplates) {
             state.templates = JSON.parse(savedTemplates);
@@ -96,18 +81,57 @@ function sendWorkoutToBot(workoutData) {
         console.error('❌ Ошибка отправки:', error);
         tg.showPopup({
             title: '❌ Ошибка',
-            message: 'Не удалось отправить данные боту. Проверь подключение.',
+            message: 'Не удалось отправить данные боту',
             buttons: [{ type: 'ok' }]
         });
         return false;
     }
 }
 
+// ========== ФУНКЦИЯ ДЛЯ УДАЛЕНИЯ ТРЕНИРОВКИ ==========
+function deleteWorkout(workoutId) {
+    // Показываем подтверждение
+    tg.showPopup({
+        title: '⚠️ Удаление',
+        message: 'Точно удалить эту тренировку?',
+        buttons: [
+            { id: 'delete', type: 'destructive', text: 'Удалить' },
+            { id: 'cancel', type: 'cancel', text: 'Отмена' }
+        ]
+    }, (buttonId) => {
+        if (buttonId === 'delete') {
+            // Удаляем из локального хранилища
+            state.history = state.history.filter(w => w.id !== workoutId);
+            saveToStorage();
+
+            // Отправляем команду боту на удаление
+            try {
+                tg.sendData(JSON.stringify({
+                    type: 'delete_workout',
+                    workout_id: workoutId
+                }));
+                console.log(`🗑️ Отправлена команда удаления тренировки ${workoutId}`);
+            } catch (error) {
+                console.error('❌ Ошибка отправки команды удаления:', error);
+            }
+
+            // Показываем сообщение
+            tg.showPopup({
+                title: '✅ Удалено',
+                message: 'Тренировка удалена из хроник',
+                buttons: [{ type: 'ok' }]
+            });
+
+            // Обновляем отображение
+            showHistory();
+        }
+    });
+}
+
 // ========== ОТОБРАЖЕНИЕ РАЗДЕЛОВ ==========
 function showSection(section) {
     state.currentSection = section;
 
-    // Подсвечиваем активную карточку меню
     menuCards.forEach(card => {
         const cardSection = card.dataset.section;
         if (cardSection === section) {
@@ -117,7 +141,6 @@ function showSection(section) {
         }
     });
 
-    // Показываем соответствующий контент
     switch(section) {
         case 'today':
             showTodayTrial();
@@ -140,8 +163,8 @@ function showSection(section) {
 function showWelcome() {
     contentEl.innerHTML = `
         <div class="welcome-message">
-            <h2 class="welcome-title">Да начнутся испытания, ${state.user.first_name}!</h2>
-            <p class="welcome-text">Выбери раздел в меню выше, о смертный...</p>
+            <h2>Да начнутся испытания, ${state.user.first_name}!</h2>
+            <p>Выбери раздел в меню выше, о смертный...</p>
             <div class="welcome-icon">🏛️</div>
         </div>
     `;
@@ -173,22 +196,6 @@ function showTodayTrial() {
             reward: '🦵 +40 силы ног',
             exercises: [
                 { name: 'Приседания со штангой', sets: 4, reps: 15, weight: 50 }
-            ]
-        },
-        {
-            name: 'Лук Одиссея',
-            description: 'Тяга верхнего блока 3×12',
-            reward: '🏹 +35 силы спины',
-            exercises: [
-                { name: 'Тяга верхнего блока', sets: 3, reps: 12, weight: 40 }
-            ]
-        },
-        {
-            name: 'Копьё Ахиллеса',
-            description: 'Жим лёжа 5×5',
-            reward: '🛡️ +50 силы груди',
-            exercises: [
-                { name: 'Жим штанги лёжа', sets: 5, reps: 5, weight: 60 }
             ]
         }
     ];
@@ -241,7 +248,6 @@ function showWorkoutCreator() {
         exercisesHtml += '</div>';
     }
 
-    // Формируем HTML для шаблонов
     let templatesHtml = '';
     if (state.templates.length > 0) {
         templatesHtml = '<div class="templates-section">';
@@ -278,7 +284,6 @@ function showWorkoutCreator() {
         ` : ''}
     `;
 
-    // Обновляем название при вводе
     const nameInput = document.getElementById('workoutName');
     if (nameInput) {
         nameInput.oninput = (e) => {
@@ -286,15 +291,12 @@ function showWorkoutCreator() {
         };
     }
 
-    // Показываем кнопку сохранения, если есть упражнения
     actionBar.style.display = state.currentWorkout.exercises.length > 0 ? 'block' : 'none';
 
-    // Добавляем обработчик для кнопки добавления упражнения
     document.getElementById('addExerciseBtn').onclick = () => {
         modal.classList.add('show');
     };
 
-    // Добавляем обработчики для удаления упражнений
     document.querySelectorAll('.remove-exercise').forEach(btn => {
         btn.onclick = (e) => {
             e.stopPropagation();
@@ -304,7 +306,6 @@ function showWorkoutCreator() {
         };
     });
 
-    // Добавляем обработчики для шаблонов
     document.querySelectorAll('.template-btn').forEach(btn => {
         btn.onclick = (e) => {
             const templateIndex = e.target.dataset.templateIndex;
@@ -322,42 +323,30 @@ function showWorkoutCreator() {
         };
     });
 
-    // Добавляем обработчик для сохранения шаблона
     const saveTemplateBtn = document.getElementById('saveTemplateBtn');
     if (saveTemplateBtn) {
         saveTemplateBtn.onclick = () => {
-            tg.showPopup({
-                title: '💾 Сохранить шаблон',
-                message: 'Введите название для шаблона:',
-                buttons: [
-                    { id: 'save', type: 'default', text: 'Сохранить' },
-                    { id: 'cancel', type: 'cancel', text: 'Отмена' }
-                ]
-            }, (btnId) => {
-                if (btnId === 'save') {
-                    const templateName = prompt('Название шаблона:', state.currentWorkout.name);
-                    if (templateName && templateName.trim()) {
-                        state.templates.push({
-                            name: templateName.trim(),
-                            exercises: JSON.parse(JSON.stringify(state.currentWorkout.exercises))
-                        });
-                        saveToStorage();
+            const templateName = prompt('Название шаблона:', state.currentWorkout.name);
+            if (templateName && templateName.trim()) {
+                state.templates.push({
+                    name: templateName.trim(),
+                    exercises: JSON.parse(JSON.stringify(state.currentWorkout.exercises))
+                });
+                saveToStorage();
 
-                        tg.showPopup({
-                            title: '✅ Готово',
-                            message: `Шаблон "${templateName}" сохранён!`,
-                            buttons: [{ type: 'ok' }]
-                        });
+                tg.showPopup({
+                    title: '✅ Готово',
+                    message: `Шаблон "${templateName}" сохранён!`,
+                    buttons: [{ type: 'ok' }]
+                });
 
-                        showWorkoutCreator();
-                    }
-                }
-            });
+                showWorkoutCreator();
+            }
         };
     }
 }
 
-// ========== ИСТОРИЯ ТРЕНИРОВОК ==========
+// ========== ИСТОРИЯ ТРЕНИРОВОК С КНОПКАМИ УДАЛЕНИЯ ==========
 function showHistory() {
     if (state.history.length === 0) {
         contentEl.innerHTML = `
@@ -375,7 +364,7 @@ function showHistory() {
 
     let historyHtml = '<div class="history-scroll">';
 
-    // Группируем тренировки по датам (новые сверху)
+    // Группируем по датам (новые сверху)
     const grouped = {};
     [...state.history].reverse().forEach(workout => {
         const date = new Date(workout.date).toLocaleDateString('ru-RU', {
@@ -387,7 +376,6 @@ function showHistory() {
         grouped[date].push(workout);
     });
 
-    // Отображаем тренировки по датам
     Object.keys(grouped).forEach(date => {
         historyHtml += `<h3 class="history-date-header">📅 ${date}</h3>`;
 
@@ -425,7 +413,9 @@ function showHistory() {
                     </div>
                     <div class="history-footer">
                         <span class="history-count">${workout.exercises.length} упражнений</span>
-                        <button class="history-delete" data-id="${workout.id}" title="Удалить">✕</button>
+                        <button class="history-delete" onclick="deleteWorkout('${workout.id}')" title="Удалить">
+                            🗑️
+                        </button>
                     </div>
                 </div>
             `;
@@ -434,7 +424,7 @@ function showHistory() {
 
     historyHtml += '</div>';
 
-    // Добавляем статистику
+    // Статистика
     const totalExercises = state.history.reduce((acc, w) => acc + w.exercises.length, 0);
     const totalWeight = state.history.reduce((acc, w) => {
         return acc + w.exercises.reduce((sum, ex) => sum + (ex.weight * ex.sets * ex.reps), 0);
@@ -461,29 +451,6 @@ function showHistory() {
         ${historyHtml}
     `;
 
-    // Добавляем обработчики удаления
-    document.querySelectorAll('.history-delete').forEach(btn => {
-        btn.onclick = (e) => {
-            e.stopPropagation();
-            const id = e.target.dataset.id;
-
-            tg.showPopup({
-                title: '⚠️ Удаление',
-                message: 'Точно удалить эту тренировку?',
-                buttons: [
-                    { id: 'yes', type: 'destructive', text: 'Удалить' },
-                    { id: 'no', type: 'cancel', text: 'Отмена' }
-                ]
-            }, (btnId) => {
-                if (btnId === 'yes') {
-                    state.history = state.history.filter(w => w.id !== id);
-                    saveToStorage();
-                    showHistory();
-                }
-            });
-        };
-    });
-
     actionBar.style.display = 'none';
 }
 
@@ -493,15 +460,7 @@ function showOracle() {
         "«Сила приходит не от мышц, а от духа, закалённого испытаниями»",
         "«Тень героя длиннее его тела, если герой много тренируется»",
         "«Ахиллес был уязвим лишь в пятку. Найди свою пятку и укрепи её»",
-        "«Геракл начинал с одного камня. Ты начинаешь с одного подхода»",
-        "«Река Стикс течёт через каждого, кто не боится пота»",
-        "«Олимп не покоряется за один день. Нужны годы тренировок»",
-        "«Прометей принёс огонь. Ты принесёшь новые рекорды»",
-        "«Спартанец не спрашивает сколько, он спрашивает где»",
-        "«Даже Зевс когда-то был младенцем. Начни с малого»",
-        "«Тысячи павших героев завидуют твоему упорству»",
-        "«Каждый подход приближает тебя к Олимпу»",
-        "«Пот героя — вода для реки Стикс»"
+        "«Геракл начинал с одного камня. Ты начинаешь с одного подхода»"
     ];
 
     const randomProphecy = prophecies[Math.floor(Math.random() * prophecies.length)];
@@ -551,7 +510,6 @@ cancelModalBtn.onclick = () => {
     modalForm.reset();
 };
 
-// Закрытие модалки по клику вне её
 modal.onclick = (e) => {
     if (e.target === modal) {
         modal.classList.remove('show');
@@ -570,7 +528,6 @@ saveBtn.onclick = () => {
         return;
     }
 
-    // Создаём запись о тренировке
     const workoutRecord = {
         id: Date.now().toString(),
         name: state.currentWorkout.name || 'Тренировка',
@@ -582,21 +539,16 @@ saveBtn.onclick = () => {
 
     console.log('💾 Сохраняем тренировку:', workoutRecord);
 
-    // Сохраняем локально
     state.history.push(workoutRecord);
     saveToStorage();
-
-    // Отправляем боту
     sendWorkoutToBot(workoutRecord);
 
-    // Очищаем текущую тренировку
     state.currentWorkout = {
         name: 'Тренировка',
         exercises: [],
         notes: ''
     };
 
-    // Переходим в историю
     showSection('history');
 };
 
@@ -608,11 +560,14 @@ menuCards.forEach(card => {
     };
 });
 
-// ========== ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ ==========
+// ========== ИНИЦИАЛИЗАЦИЯ ==========
 loadFromStorage();
 showWelcome();
 
-// Показываем приветственное сообщение
+// Делаем функцию удаления глобальной для доступа из HTML
+window.deleteWorkout = deleteWorkout;
+
+// Приветственное сообщение
 setTimeout(() => {
     tg.showPopup({
         title: '🏛️ Добро пожаловать в Чертог!',
@@ -620,218 +575,3 @@ setTimeout(() => {
         buttons: [{ type: 'ok' }]
     });
 }, 500);
-
-// ========== ДОБАВЛЯЕМ СТИЛИ ==========
-const style = document.createElement('style');
-style.textContent = `
-    /* Общие стили */
-    .welcome-message { text-align: center; padding: 40px 20px; }
-    .welcome-title { font-family: 'Cinzel'; color: var(--gold); font-size: 24px; margin-bottom: 20px; }
-    .welcome-text { color: var(--old-paper); opacity: 0.8; margin-bottom: 30px; }
-    .welcome-icon { font-size: 80px; opacity: 0.5; }
-
-    /* Стили для раздела тренировки */
-    .workout-name-section { margin-bottom: 25px; }
-    .workout-label { display: block; color: var(--gold); margin-bottom: 8px; font-size: 14px; letter-spacing: 1px; }
-    .workout-name-input {
-        width: 100%;
-        padding: 12px;
-        background: #1a1510;
-        border: 2px solid var(--bronze);
-        border-radius: 10px;
-        color: var(--old-paper);
-        font-size: 16px;
-        font-family: 'Cinzel';
-    }
-    .workout-name-input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 15px var(--bronze); }
-
-    /* Стили для упражнений */
-    .exercises-list { margin-bottom: 20px; }
-    .exercise-item {
-        background: linear-gradient(90deg, #2a241e, #1a1510);
-        border-left: 6px solid var(--bronze);
-        border-radius: 10px;
-        padding: 15px;
-        margin-bottom: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        box-shadow: 0 3px 10px black;
-    }
-    .exercise-name { font-family: 'Cinzel'; color: var(--gold); font-size: 16px; }
-    .exercise-details { display: flex; gap: 10px; }
-    .exercise-sets, .exercise-weight {
-        background: #0a0806;
-        padding: 4px 10px;
-        border-radius: 20px;
-        border: 1px solid var(--bronze);
-        font-size: 14px;
-    }
-    .remove-exercise {
-        background: none;
-        border: none;
-        color: #8b1e1e;
-        font-size: 24px;
-        cursor: pointer;
-        transition: all 0.3s;
-    }
-    .remove-exercise:hover { color: #b22e2e; transform: scale(1.2); }
-
-    /* Стили для шаблонов */
-    .templates-section { margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--marble-gray); }
-    .templates-title { color: var(--gold); margin-bottom: 15px; font-size: 18px; }
-    .templates-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-    .template-btn {
-        padding: 12px;
-        background: #2a241e;
-        border: 1px solid var(--bronze);
-        border-radius: 8px;
-        color: var(--old-paper);
-        font-family: 'Cinzel';
-        cursor: pointer;
-        transition: all 0.3s;
-    }
-    .template-btn:hover { background: #3a342e; border-color: var(--gold); transform: translateY(-2px); }
-    .template-save-btn {
-        width: 100%;
-        padding: 12px;
-        margin-top: 15px;
-        background: #2c4a3b;
-        border: 1px solid #7f9a6b;
-        border-radius: 8px;
-        color: #e3f0da;
-        font-family: 'Cinzel';
-        cursor: pointer;
-        transition: all 0.3s;
-    }
-    .template-save-btn:hover { background: #3a5e4b; transform: translateY(-2px); }
-
-    /* Стили для истории */
-    .history-scroll { max-height: 400px; overflow-y: auto; padding-right: 5px; }
-    .history-date-header {
-        color: var(--gold);
-        margin: 20px 0 10px;
-        font-size: 18px;
-        border-bottom: 1px dashed var(--bronze);
-        padding-bottom: 5px;
-    }
-    .history-item {
-        background: #1a1510;
-        border: 1px solid var(--marble-gray);
-        border-radius: 10px;
-        padding: 15px;
-        margin-bottom: 15px;
-    }
-    .history-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
-    .history-name { color: var(--gold); font-weight: bold; }
-    .history-time { color: var(--bronze); font-size: 14px; }
-    .history-exercises { margin: 10px 0; font-size: 14px; }
-    .history-ex-item { color: var(--old-paper); opacity: 0.9; margin: 3px 0; }
-    .history-ex-more { color: var(--bronze); font-style: italic; margin-top: 5px; }
-    .history-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
-    .history-count { color: var(--bronze); font-size: 12px; }
-    .history-delete {
-        background: none;
-        border: none;
-        color: #8b1e1e;
-        font-size: 20px;
-        cursor: pointer;
-        padding: 5px 10px;
-    }
-    .history-delete:hover { color: #b22e2e; }
-
-    /* Статистика */
-    .stats-bar {
-        display: flex;
-        justify-content: space-around;
-        background: #1a1510;
-        border: 1px solid var(--bronze);
-        border-radius: 10px;
-        padding: 15px;
-        margin-bottom: 20px;
-    }
-    .stat-item { text-align: center; }
-    .stat-value {
-        display: block;
-        font-size: 24px;
-        font-weight: bold;
-        color: var(--gold);
-        font-family: 'Cinzel';
-    }
-    .stat-label { font-size: 12px; color: var(--old-paper); opacity: 0.7; }
-
-    /* Пустая история */
-    .empty-history { text-align: center; padding: 40px 20px; }
-    .empty-title { color: var(--gold); margin-bottom: 15px; }
-    .empty-text { color: var(--old-paper); margin-bottom: 25px; }
-    .empty-btn {
-        padding: 15px 30px;
-        background: var(--bronze);
-        border: none;
-        border-radius: 10px;
-        color: var(--primary-dark);
-        font-family: 'Cinzel';
-        cursor: pointer;
-    }
-
-    /* Испытание дня */
-    .trial-container { text-align: center; padding: 20px; }
-    .trial-title { color: var(--gold); margin-bottom: 20px; }
-    .trial-icon { font-size: 80px; margin: 20px; }
-    .trial-name { color: var(--gold); font-size: 28px; margin: 15px; }
-    .trial-description { font-size: 18px; margin: 15px; }
-    .trial-reward { color: var(--bronze); font-size: 20px; margin: 15px; }
-    .trial-btn {
-        padding: 15px 30px;
-        background: var(--bronze);
-        border: none;
-        border-radius: 10px;
-        color: var(--primary-dark);
-        font-family: 'Cinzel';
-        cursor: pointer;
-        margin-top: 20px;
-    }
-
-    /* Оракул */
-    .oracle-container { text-align: center; padding: 20px; }
-    .oracle-title { color: var(--gold); margin-bottom: 20px; }
-    .oracle-icon { font-size: 80px; margin: 20px; }
-    .oracle-text {
-        font-size: 24px;
-        font-style: italic;
-        color: var(--gold);
-        margin: 30px;
-        line-height: 1.6;
-    }
-    .oracle-author { color: var(--bronze); margin-bottom: 30px; }
-    .oracle-btn {
-        padding: 15px 30px;
-        background: var(--bronze);
-        border: none;
-        border-radius: 10px;
-        color: var(--primary-dark);
-        font-family: 'Cinzel';
-        cursor: pointer;
-    }
-
-    /* Кнопка добавления */
-    .add-btn {
-        width: 100%;
-        padding: 15px;
-        background: var(--bronze);
-        border: none;
-        border-radius: 10px;
-        color: var(--primary-dark);
-        font-family: 'Cinzel';
-        font-size: 18px;
-        font-weight: 700;
-        cursor: pointer;
-        margin-top: 10px;
-        transition: all 0.3s;
-    }
-    .add-btn:hover { background: #c98343; transform: translateY(-2px); }
-
-    /* Пустое сообщение */
-    .empty-message { text-align: center; color: var(--bronze); padding: 30px; }
-`;
-document.head.appendChild(style);
