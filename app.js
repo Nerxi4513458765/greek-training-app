@@ -1,9 +1,15 @@
-// app.js - ПОЛНАЯ ВЕРСИЯ С ПРАВИЛЬНЫМ УДАЛЕНИЕМ
+// app.js - КРАСИВЫЙ ИНТЕРФЕЙС + УДАЛЕНИЕ ПО ДАТЕ
 
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
+
+// Настраиваем цвета
+document.body.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#0a0806');
+document.body.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#e0d7c6');
+document.body.style.setProperty('--tg-theme-button-color', tg.themeParams.button_color || '#b87333');
+document.body.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color || '#0a0806');
 
 // ========== СОСТОЯНИЕ ==========
 const state = {
@@ -14,7 +20,6 @@ const state = {
         notes: ''
     },
     history: [],
-    templates: [],
     user: tg.initDataUnsafe?.user || { id: 0, first_name: 'Герой' }
 };
 
@@ -30,9 +35,9 @@ const cancelModalBtn = document.getElementById('cancelModal');
 // ========== ХРАНИЛИЩЕ ==========
 function loadFromStorage() {
     try {
-        const savedHistory = localStorage.getItem(`workouts_${state.user.id}`);
-        if (savedHistory) {
-            state.history = JSON.parse(savedHistory);
+        const saved = localStorage.getItem(`workouts_${state.user.id}`);
+        if (saved) {
+            state.history = JSON.parse(saved);
             console.log(`📚 Загружено ${state.history.length} тренировок`);
         }
     } catch (e) {
@@ -56,13 +61,13 @@ function sendToBot(data) {
     }
 }
 
-// ========== УДАЛЕНИЕ ТРЕНИРОВКИ ==========
-window.deleteWorkout = function(workoutId) {
-    console.log('🗑️ Попытка удаления тренировки с ID:', workoutId);
+// ========== УДАЛЕНИЕ ПО ДАТЕ ==========
+window.deleteWorkout = function(workoutDate, workoutName) {
+    console.log('🗑️ Попытка удаления тренировки от', workoutDate);
 
     tg.showPopup({
         title: '⚠️ Удаление',
-        message: 'Точно удалить эту тренировку?',
+        message: `Точно удалить тренировку "${workoutName}"?`,
         buttons: [
             { id: 'delete', type: 'destructive', text: 'Удалить' },
             { id: 'cancel', type: 'cancel', text: 'Отмена' }
@@ -73,23 +78,21 @@ window.deleteWorkout = function(workoutId) {
 
             // 1. Удаляем из локального хранилища
             const oldLength = state.history.length;
-            state.history = state.history.filter(w => w.id !== workoutId);
+            state.history = state.history.filter(w => w.date !== workoutDate);
             saveToStorage();
-            console.log(`📊 Локальное хранилище: было ${oldLength}, стало ${state.history.length}`);
+            console.log(`📊 Локально: было ${oldLength}, стало ${state.history.length}`);
 
             // 2. Отправляем команду боту
-            const success = sendToBot({
-                type: 'delete_workout',
-                workout_id: workoutId
+            sendToBot({
+                type: 'delete_workout_by_date',
+                date: workoutDate
             });
 
-            if (success) {
-                tg.showPopup({
-                    title: '✅ Удалено',
-                    message: 'Тренировка удалена из хроник',
-                    buttons: [{ type: 'ok' }]
-                });
-            }
+            tg.showPopup({
+                title: '✅ Удалено',
+                message: 'Тренировка удалена',
+                buttons: [{ type: 'ok' }]
+            });
 
             // 3. Обновляем отображение
             showHistory();
@@ -126,29 +129,59 @@ function showWelcome() {
 // ========== ПОДВИГ ДНЯ ==========
 function showTodayTrial() {
     const trials = [
-        { name: 'Марафон Геродота', desc: '5000 шагов или 30 мин бега' },
-        { name: 'Завтрак титанов', desc: '100 отжиманий' }
+        {
+            name: 'Марафон Геродота',
+            desc: '5000 шагов или 30 мин бега',
+            reward: '🏃‍♂️ +50 выносливости',
+            icon: '🏃'
+        },
+        {
+            name: 'Завтрак титанов',
+            desc: '100 отжиманий',
+            reward: '💪 +30 силы',
+            icon: '💪'
+        },
+        {
+            name: 'Камень Сизифа',
+            desc: 'Приседания с весом 4×15',
+            reward: '🦵 +40 силы ног',
+            icon: '🦵'
+        },
+        {
+            name: 'Лук Одиссея',
+            desc: 'Тяга верхнего блока 3×12',
+            reward: '🏹 +35 силы спины',
+            icon: '🏹'
+        },
+        {
+            name: 'Копьё Ахиллеса',
+            desc: 'Жим лёжа 5×5',
+            reward: '🛡️ +50 силы груди',
+            icon: '🛡️'
+        }
     ];
-    const t = trials[Math.floor(Math.random() * trials.length)];
+
+    const trial = trials[Math.floor(Math.random() * trials.length)];
 
     contentEl.innerHTML = `
         <div class="trial-container">
             <h2 class="trial-title">⚡ ПОДВИГ ДНЯ</h2>
-            <div class="trial-icon">🏛️</div>
-            <h3 class="trial-name">${t.name}</h3>
-            <p class="trial-description">${t.desc}</p>
-            <button class="trial-btn" onclick="showSection('workout')">🏛️ ПРИНЯТЬ</button>
+            <div class="trial-icon">${trial.icon}</div>
+            <h3 class="trial-name">${trial.name}</h3>
+            <p class="trial-description">${trial.desc}</p>
+            <p class="trial-reward">${trial.reward}</p>
+            <button class="trial-btn" onclick="showSection('workout')">🏛️ ПРИНЯТЬ ВЫЗОВ</button>
         </div>
     `;
     actionBar.style.display = 'none';
 }
 
-// ========== СОЗДАТЕЛЬ ТРЕНИРОВОК ==========
+// ========== СОЗДАТЕЛЬ ТРЕНИРОВОК (КРАСИВЫЙ) ==========
 function showWorkoutCreator() {
     let exercisesHtml = '';
 
     if (state.currentWorkout.exercises.length === 0) {
-        exercisesHtml = '<p class="empty-message">❗ Ещё нет упражнений. Начни свой подвиг!</p>';
+        exercisesHtml = '<p class="empty-message">⚡ Ещё нет упражнений. Начни свой подвиг!</p>';
     } else {
         exercisesHtml = '<div class="exercises-list">';
         state.currentWorkout.exercises.forEach((ex, index) => {
@@ -196,7 +229,7 @@ window.removeExercise = function(index) {
     showWorkoutCreator();
 };
 
-// ========== ХРОНИКИ ==========
+// ========== ХРОНИКИ (КРАСИВЫЕ) ==========
 function showHistory() {
     if (state.history.length === 0) {
         contentEl.innerHTML = `
@@ -215,7 +248,11 @@ function showHistory() {
     // Группировка по датам
     const grouped = {};
     [...state.history].reverse().forEach(workout => {
-        const date = new Date(workout.date).toLocaleDateString('ru-RU');
+        const date = new Date(workout.date).toLocaleDateString('ru-RU', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        });
         if (!grouped[date]) grouped[date] = [];
         grouped[date].push(workout);
     });
@@ -232,7 +269,7 @@ function showHistory() {
             });
 
             html += `
-                <div class="history-item" data-id="${workout.id}">
+                <div class="history-item">
                     <div class="history-header">
                         <span class="history-name">🏛️ ${workout.name}</span>
                         <span class="history-time">${time}</span>
@@ -246,7 +283,7 @@ function showHistory() {
                     </div>
                     <div class="history-footer">
                         <span class="history-count">${workout.exercises.length} упражнений</span>
-                        <button class="history-delete" onclick="deleteWorkout('${workout.id}')">🗑️</button>
+                        <button class="history-delete" onclick="deleteWorkout('${workout.date}', '${workout.name}')">🗑️</button>
                     </div>
                 </div>
             `;
@@ -275,12 +312,14 @@ function showHistory() {
     actionBar.style.display = 'none';
 }
 
-// ========== ОРАКУЛ ==========
+// ========== ОРАКУЛ (КРАСИВЫЙ) ==========
 function showOracle() {
     const prophecies = [
         "«Река Стикс течёт через каждого, кто не боится пота»",
         "«Сила приходит от духа, закалённого испытаниями»",
-        "«Геракл начинал с одного камня»"
+        "«Геракл начинал с одного камня. Ты начинаешь с одного подхода»",
+        "«Тень героя длиннее его тела, если он тренируется»",
+        "«Ахиллес был уязвим лишь в пятку. Найди и укрепи свою»"
     ];
 
     contentEl.innerHTML = `
@@ -288,7 +327,7 @@ function showOracle() {
             <h2 class="oracle-title">🔮 ИЗРЕЧЕНИЕ ОРАКУЛА</h2>
             <div class="oracle-icon">🏺</div>
             <p class="oracle-text">"${prophecies[Math.floor(Math.random() * prophecies.length)]}"</p>
-            <p class="oracle-author">— Пифия</p>
+            <p class="oracle-author">— Пифия, жрица Аполлона</p>
             <button class="oracle-btn" onclick="showOracle()">🎲 НОВОЕ ПРОРОЧЕСТВО</button>
         </div>
     `;
@@ -307,7 +346,11 @@ modalForm.onsubmit = (e) => {
     };
 
     if (!exercise.name) {
-        tg.showPopup({ title: 'Ошибка', message: 'Введите название упражнения!', buttons: [{ type: 'ok' }] });
+        tg.showPopup({
+            title: 'Ошибка',
+            message: 'Введите название упражнения!',
+            buttons: [{ type: 'ok' }]
+        });
         return;
     }
 
@@ -332,46 +375,41 @@ modal.onclick = (e) => {
 // ========== СОХРАНЕНИЕ ==========
 saveBtn.onclick = () => {
     if (state.currentWorkout.exercises.length === 0) {
-        tg.showPopup({ title: 'Ошибка', message: 'Добавь хотя бы одно упражнение!', buttons: [{ type: 'ok' }] });
+        tg.showPopup({
+            title: 'Ошибка',
+            message: 'Добавь хотя бы одно упражнение!',
+            buttons: [{ type: 'ok' }]
+        });
         return;
     }
 
-    // Создаём временный ID для локального хранения
-    const tempId = Date.now().toString();
-
     const workout = {
-        id: tempId,
+        id: Date.now().toString(),
         name: state.currentWorkout.name || 'Тренировка',
         date: new Date().toISOString(),
         exercises: [...state.currentWorkout.exercises],
         userId: state.user.id
     };
 
-    // Сохраняем локально
     state.history.push(workout);
     saveToStorage();
 
-    // Отправляем боту
     sendToBot({
         type: 'new_workout',
         workout: {
             name: workout.name,
             exercises: workout.exercises,
-            date: workout.date,
-            client_id: tempId  // отправляем временный ID
+            date: workout.date
         }
     });
 
-    // Очищаем форму
-    state.currentWorkout = { name: 'Тренировка', exercises: [], notes: '' };
-
-    // Показываем подтверждение
     tg.showPopup({
         title: '✅ Сохранено',
         message: 'Тренировка отправлена боту',
         buttons: [{ type: 'ok' }]
     });
 
+    state.currentWorkout = { name: 'Тренировка', exercises: [], notes: '' };
     showSection('history');
 };
 
