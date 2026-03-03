@@ -94,8 +94,9 @@ function sendWorkoutToBot(workoutData) {
     }
 }
 
-// ========== ФУНКЦИЯ ДЛЯ УДАЛЕНИЯ ТРЕНИРОВКИ ==========
 function deleteWorkout(workoutId) {
+    console.log('🗑️ Попытка удаления тренировки:', workoutId);
+
     tg.showPopup({
         title: '⚠️ Удаление',
         message: 'Точно удалить эту тренировку?',
@@ -105,28 +106,45 @@ function deleteWorkout(workoutId) {
         ]
     }, (buttonId) => {
         if (buttonId === 'delete') {
-            // Удаляем из локального хранилища
+            console.log('✅ Подтверждено удаление');
+
+            // 1. Удаляем из локального хранилища
+            const oldLength = state.history.length;
             state.history = state.history.filter(w => w.id !== workoutId);
+            console.log(`📊 Было: ${oldLength}, стало: ${state.history.length}`);
+
+            // Сохраняем в localStorage
             saveToStorage();
 
-            // Отправляем команду боту на удаление
+            // 2. Отправляем команду боту
             try {
-                tg.sendData(JSON.stringify({
+                const deleteCommand = {
                     type: 'delete_workout',
                     workout_id: workoutId
-                }));
-                console.log(`🗑️ Отправлена команда удаления тренировки ${workoutId}`);
+                };
+                const jsonString = JSON.stringify(deleteCommand);
+                console.log('📤 Отправка команды удаления:', jsonString);
+
+                tg.sendData(jsonString);
+                console.log('✅ Команда удаления отправлена');
+
+                tg.showPopup({
+                    title: '✅ Удалено',
+                    message: 'Тренировка удалена из хроник',
+                    buttons: [{ type: 'ok' }]
+                });
+
+                // Обновляем отображение
+                showHistory();
+
             } catch (error) {
                 console.error('❌ Ошибка отправки команды удаления:', error);
+                tg.showPopup({
+                    title: '❌ Ошибка',
+                    message: 'Не удалось отправить команду боту',
+                    buttons: [{ type: 'ok' }]
+                });
             }
-
-            tg.showPopup({
-                title: '✅ Удалено',
-                message: 'Тренировка удалена из хроник',
-                buttons: [{ type: 'ok' }]
-            });
-
-            showHistory();
         }
     });
 }
