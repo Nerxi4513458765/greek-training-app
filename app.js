@@ -1,4 +1,4 @@
-// app.js - МИНИМАЛИСТИЧНЫЙ ИНТЕРФЕЙС С УДАЛЕНИЕМ ПО ДАТЕ
+// app.js - МИНИМАЛИСТИЧНЫЙ ИНТЕРФЕЙС
 
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 const tg = window.Telegram.WebApp;
@@ -38,7 +38,7 @@ function saveToStorage() {
     localStorage.setItem(`workouts_${state.user.id}`, JSON.stringify(state.history));
 }
 
-// ========== УДАЛЕНИЕ ПО ДАТЕ (ИСПРАВЛЕНО!) ==========
+// ========== УДАЛЕНИЕ ПО ДАТЕ ==========
 window.deleteWorkout = function(workoutDate, workoutName) {
     console.log('🗑️ Попытка удаления тренировки от', workoutDate);
 
@@ -51,22 +51,16 @@ window.deleteWorkout = function(workoutDate, workoutName) {
         ]
     }, (buttonId) => {
         if (buttonId === 'delete') {
-            console.log('✅ Подтверждено удаление');
-
-            // 1. Удаляем из локального хранилища
-            const oldLength = state.history.length;
+            // Удаляем из локального хранилища
             state.history = state.history.filter(w => w.date !== workoutDate);
             saveToStorage();
-            console.log(`📊 Локально: было ${oldLength}, стало ${state.history.length}`);
 
-            // 2. Отправляем команду боту с ДАТОЙ
+            // Отправляем команду боту с ДАТОЙ
             tg.sendData(JSON.stringify({
                 type: 'delete_workout_by_date',
                 date: workoutDate
             }));
-            console.log('📤 Отправлена команда удаления по дате');
 
-            // 3. Обновляем отображение
             showHistory();
         }
     });
@@ -90,7 +84,7 @@ function showWelcome() {
     actionBar.style.display = 'none';
 }
 
-// ========== ТОТ САМЫЙ ИНТЕРФЕЙС, КОТОРЫЙ ТЫ ХОЧЕШЬ ==========
+// ========== ТВОЙ ИНТЕРФЕЙС ==========
 function showWorkoutCreator() {
     let exercisesHtml = '';
 
@@ -142,7 +136,7 @@ window.removeExercise = function(index) {
     showWorkoutCreator();
 };
 
-// ========== ХРОНИКИ (С ПЕРЕДАЧЕЙ ДАТЫ В УДАЛЕНИЕ) ==========
+// ========== ХРОНИКИ ==========
 function showHistory() {
     if (state.history.length === 0) {
         contentEl.innerHTML = `
@@ -297,4 +291,4 @@ menuCards.forEach(card => {
 
 // ========== СТАРТ ==========
 loadFromStorage();
-showWelcome()
+showWelcome();
