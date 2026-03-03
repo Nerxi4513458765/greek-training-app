@@ -1,4 +1,4 @@
-// app.js - МИНИМАЛИСТИЧНЫЙ ИНТЕРФЕЙС
+// app.js - МИНИМАЛИСТИЧНЫЙ ИНТЕРФЕЙС С УДАЛЕНИЕМ ПО ДАТЕ
 
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 const tg = window.Telegram.WebApp;
@@ -38,20 +38,35 @@ function saveToStorage() {
     localStorage.setItem(`workouts_${state.user.id}`, JSON.stringify(state.history));
 }
 
-// ========== УДАЛЕНИЕ ==========
-window.deleteWorkout = function(workoutId) {
+// ========== УДАЛЕНИЕ ПО ДАТЕ (ИСПРАВЛЕНО!) ==========
+window.deleteWorkout = function(workoutDate, workoutName) {
+    console.log('🗑️ Попытка удаления тренировки от', workoutDate);
+
     tg.showPopup({
         title: '⚠️ Удаление',
-        message: 'Точно удалить эту тренировку?',
+        message: `Точно удалить тренировку "${workoutName}"?`,
         buttons: [
             { id: 'delete', type: 'destructive', text: 'Удалить' },
             { id: 'cancel', type: 'cancel', text: 'Отмена' }
         ]
     }, (buttonId) => {
         if (buttonId === 'delete') {
-            state.history = state.history.filter(w => w.id !== workoutId);
+            console.log('✅ Подтверждено удаление');
+
+            // 1. Удаляем из локального хранилища
+            const oldLength = state.history.length;
+            state.history = state.history.filter(w => w.date !== workoutDate);
             saveToStorage();
-            tg.sendData(JSON.stringify({ type: 'delete_workout', workout_id: workoutId }));
+            console.log(`📊 Локально: было ${oldLength}, стало ${state.history.length}`);
+
+            // 2. Отправляем команду боту с ДАТОЙ
+            tg.sendData(JSON.stringify({
+                type: 'delete_workout_by_date',
+                date: workoutDate
+            }));
+            console.log('📤 Отправлена команда удаления по дате');
+
+            // 3. Обновляем отображение
             showHistory();
         }
     });
@@ -127,7 +142,7 @@ window.removeExercise = function(index) {
     showWorkoutCreator();
 };
 
-// ========== ХРОНИКИ ==========
+// ========== ХРОНИКИ (С ПЕРЕДАЧЕЙ ДАТЫ В УДАЛЕНИЕ) ==========
 function showHistory() {
     if (state.history.length === 0) {
         contentEl.innerHTML = `
@@ -161,7 +176,7 @@ function showHistory() {
                 </div>
                 <div style="display:flex; justify-content:space-between; margin-top:10px">
                     <span style="color:#b87333">${w.exercises.length} упражнений</span>
-                    <button onclick="deleteWorkout('${w.id}')" style="background:none; border:none; color:#8b1e1e; font-size:20px; cursor:pointer">🗑️</button>
+                    <button onclick="deleteWorkout('${w.date}', '${w.name}')" style="background:none; border:none; color:#8b1e1e; font-size:20px; cursor:pointer">🗑️</button>
                 </div>
             </div>
         `;
@@ -282,4 +297,4 @@ menuCards.forEach(card => {
 
 // ========== СТАРТ ==========
 loadFromStorage();
-showWelcome();
+showWelcome()
