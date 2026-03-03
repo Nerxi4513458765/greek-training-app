@@ -1,17 +1,17 @@
-// app.js - Полностью исправленная версия
+// app.js - РАБОЧАЯ ВЕРСИЯ (только добавлено удаление)
 
 // ========== ИНИЦИАЛИЗАЦИЯ TELEGRAM ==========
 const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
 
-// Настраиваем цвета под тему Telegram
+// Настраиваем цвета
 document.body.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#0a0806');
 document.body.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#e0d7c6');
 document.body.style.setProperty('--tg-theme-button-color', tg.themeParams.button_color || '#b87333');
 document.body.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color || '#0a0806');
 
-// ========== СОСТОЯНИЕ ПРИЛОЖЕНИЯ ==========
+// ========== СОСТОЯНИЕ ==========
 const state = {
     currentSection: 'welcome',
     currentWorkout: {
@@ -24,7 +24,7 @@ const state = {
     user: tg.initDataUnsafe?.user || { id: 0, first_name: 'Герой' }
 };
 
-// ========== ЭЛЕМЕНТЫ DOM ==========
+// ========== DOM ЭЛЕМЕНТЫ ==========
 const contentEl = document.getElementById('content');
 const menuCards = document.querySelectorAll('.menu-card');
 const actionBar = document.getElementById('actionBar');
@@ -33,58 +33,30 @@ const modal = document.getElementById('exerciseModal');
 const modalForm = document.getElementById('exerciseForm');
 const cancelModalBtn = document.getElementById('cancelModal');
 
-// ========== ЗАГРУЗКА СОХРАНЁННЫХ ДАННЫХ ==========
+// ========== ЗАГРУЗКА ==========
 function loadFromStorage() {
     try {
         const savedHistory = localStorage.getItem(`workouts_${state.user.id}`);
         if (savedHistory) {
             state.history = JSON.parse(savedHistory);
-            console.log(`📚 Загружено ${state.history.length} тренировок`);
         }
-
         const savedTemplates = localStorage.getItem(`templates_${state.user.id}`);
         if (savedTemplates) {
             state.templates = JSON.parse(savedTemplates);
-            console.log(`📋 Загружено ${state.templates.length} шаблонов`);
         }
     } catch (e) {
-        console.error('❌ Ошибка загрузки:', e);
+        console.error('Ошибка загрузки:', e);
     }
 }
 
-// ========== СОХРАНЕНИЕ В ЛОКАЛЬНОЕ ХРАНИЛИЩЕ ==========
 function saveToStorage() {
-    try {
-        localStorage.setItem(`workouts_${state.user.id}`, JSON.stringify(state.history));
-        localStorage.setItem(`templates_${state.user.id}`, JSON.stringify(state.templates));
-        console.log('💾 Данные сохранены');
-    } catch (e) {
-        console.error('❌ Ошибка сохранения:', e);
-    }
+    localStorage.setItem(`workouts_${state.user.id}`, JSON.stringify(state.history));
+    localStorage.setItem(`templates_${state.user.id}`, JSON.stringify(state.templates));
 }
 
-// ========== ОТПРАВКА ДАННЫХ БОТУ ==========
-function sendWorkoutToBot(workoutData) {
-    try {
-        const dataToSend = {
-            type: 'new_workout',
-            workout: workoutData
-        };
-
-        const jsonString = JSON.stringify(dataToSend);
-        console.log('📤 Отправка боту:', jsonString);
-
-        tg.sendData(jsonString);
-        return true;
-    } catch (error) {
-        console.error('❌ Ошибка отправки:', error);
-        return false;
-    }
-}
-
-// ========== УДАЛЕНИЕ ТРЕНИРОВКИ ==========
+// ========== УДАЛЕНИЕ (НОВАЯ ФУНКЦИЯ) ==========
 function deleteWorkout(workoutId) {
-    console.log('🗑️ Попытка удаления тренировки:', workoutId);
+    console.log('🗑️ Удаление тренировки:', workoutId);
 
     tg.showPopup({
         title: '⚠️ Удаление',
@@ -95,8 +67,6 @@ function deleteWorkout(workoutId) {
         ]
     }, (buttonId) => {
         if (buttonId === 'delete') {
-            console.log('✅ Подтверждено удаление');
-
             // Удаляем из локального хранилища
             state.history = state.history.filter(w => w.id !== workoutId);
             saveToStorage();
@@ -108,36 +78,51 @@ function deleteWorkout(workoutId) {
                     workout_id: workoutId
                 }));
                 console.log('✅ Команда удаления отправлена');
-
-                tg.showPopup({
-                    title: '✅ Удалено',
-                    message: 'Тренировка удалена из хроник',
-                    buttons: [{ type: 'ok' }]
-                });
-
-                showHistory();
             } catch (error) {
                 console.error('❌ Ошибка отправки:', error);
             }
+
+            // Показываем сообщение
+            tg.showPopup({
+                title: '✅ Удалено',
+                message: 'Тренировка удалена',
+                buttons: [{ type: 'ok' }]
+            });
+
+            // Обновляем отображение
+            showHistory();
         }
     });
 }
 
-// ========== ОТОБРАЖЕНИЕ РАЗДЕЛОВ ==========
+// ========== НАВИГАЦИЯ ==========
 function showSection(section) {
     state.currentSection = section;
 
     menuCards.forEach(card => {
         const cardSection = card.dataset.section;
-        card.classList.toggle('active', cardSection === section);
+        if (cardSection === section) {
+            card.classList.add('active');
+        } else {
+            card.classList.remove('active');
+        }
     });
 
     switch(section) {
-        case 'today': showTodayTrial(); break;
-        case 'workout': showWorkoutCreator(); break;
-        case 'history': showHistory(); break;
-        case 'oracle': showOracle(); break;
-        default: showWelcome();
+        case 'today':
+            showTodayTrial();
+            break;
+        case 'workout':
+            showWorkoutCreator();
+            break;
+        case 'history':
+            showHistory();
+            break;
+        case 'oracle':
+            showOracle();
+            break;
+        default:
+            showWelcome();
     }
 }
 
@@ -146,7 +131,7 @@ function showWelcome() {
     contentEl.innerHTML = `
         <div class="welcome-message">
             <h2 class="welcome-title">Да начнутся испытания, ${state.user.first_name}!</h2>
-            <p class="welcome-text">Выбери раздел в меню выше, о смертный...</p>
+            <p class="welcome-text">Выбери раздел в меню выше</p>
             <div class="welcome-icon">🏛️</div>
         </div>
     `;
@@ -156,47 +141,65 @@ function showWelcome() {
 // ========== ПОДВИГ ДНЯ ==========
 function showTodayTrial() {
     const trials = [
-        { name: 'Марафон Геродота', description: '5000 шагов или 30 минут бега', reward: '🏃‍♂️ +50 выносливости' },
-        { name: 'Завтрак титанов', description: '100 отжиманий', reward: '💪 +30 силы' },
-        { name: 'Камень Сизифа', description: 'Приседания с весом 4×15', reward: '🦵 +40 силы ног' },
-        { name: 'Лук Одиссея', description: 'Тяга верхнего блока 3×12', reward: '🏹 +35 силы спины' },
-        { name: 'Копьё Ахиллеса', description: 'Жим лёжа 5×5', reward: '🛡️ +50 силы груди' }
+        {
+            name: 'Марафон Геродота',
+            description: '5000 шагов или 30 минут бега',
+            reward: '🏃‍♂️ +50 выносливости'
+        },
+        {
+            name: 'Завтрак титанов',
+            description: '100 отжиманий',
+            reward: '💪 +30 силы'
+        },
+        {
+            name: 'Камень Сизифа',
+            description: 'Приседания с весом 4×15',
+            reward: '🦵 +40 силы ног'
+        }
     ];
 
-    const trial = trials[Math.floor(Math.random() * trials.length)];
+    const randomTrial = trials[Math.floor(Math.random() * trials.length)];
 
     contentEl.innerHTML = `
         <div class="trial-container">
             <h2 class="trial-title">⚡ СЕГОДНЯШНЕЕ ИСПЫТАНИЕ</h2>
             <div class="trial-icon">🏛️</div>
-            <h3 class="trial-name">${trial.name}</h3>
-            <p class="trial-description">${trial.description}</p>
-            <p class="trial-reward">${trial.reward}</p>
-            <button class="trial-btn" onclick="acceptTrial('${trial.name}')">🏛️ ПРИНЯТЬ ИСПЫТАНИЕ</button>
+            <h3 class="trial-name">${randomTrial.name}</h3>
+            <p class="trial-description">${randomTrial.description}</p>
+            <p class="trial-reward">${randomTrial.reward}</p>
+            <button id="acceptTrialBtn" class="trial-btn">🏛️ ПРИНЯТЬ ИСПЫТАНИЕ</button>
         </div>
     `;
+
+    document.getElementById('acceptTrialBtn').onclick = () => {
+        showSection('workout');
+    };
+
     actionBar.style.display = 'none';
 }
 
-// Принять испытание
-window.acceptTrial = function(trialName) {
-    showSection('workout');
-};
-
 // ========== СОЗДАТЕЛЬ ТРЕНИРОВОК ==========
 function showWorkoutCreator() {
-    let exercisesHtml = state.currentWorkout.exercises.length === 0
-        ? '<p class="empty-message">⚡ Ещё нет упражнений. Начни свой подвиг!</p>'
-        : state.currentWorkout.exercises.map((ex, i) => `
-            <div class="exercise-item">
-                <span class="exercise-name">🏹 ${ex.name}</span>
-                <div class="exercise-details">
-                    <span class="exercise-sets">${ex.sets}×${ex.reps}</span>
-                    <span class="exercise-weight">${ex.weight} кг</span>
+    let exercisesHtml = '';
+
+    if (state.currentWorkout.exercises.length === 0) {
+        exercisesHtml = '<p class="empty-message">⚡ Ещё нет упражнений. Начни свой подвиг!</p>';
+    } else {
+        exercisesHtml = '<div class="exercises-list">';
+        state.currentWorkout.exercises.forEach((ex, index) => {
+            exercisesHtml += `
+                <div class="exercise-item">
+                    <span class="exercise-name">🏹 ${ex.name}</span>
+                    <div class="exercise-details">
+                        <span class="exercise-sets">${ex.sets}×${ex.reps}</span>
+                        <span class="exercise-weight">${ex.weight} кг</span>
+                    </div>
+                    <button class="remove-exercise" onclick="removeExercise(${index})" title="Удалить">✕</button>
                 </div>
-                <button class="remove-exercise" onclick="removeExercise(${i})">✕</button>
-            </div>
-        `).join('');
+            `;
+        });
+        exercisesHtml += '</div>';
+    }
 
     contentEl.innerHTML = `
         <h2 class="section-title">🏛️ СОЗДАНИЕ ПОДВИГА</h2>
@@ -207,27 +210,29 @@ function showWorkoutCreator() {
                    value="${state.currentWorkout.name}">
         </div>
 
-        <div class="exercises-list">${exercisesHtml}</div>
+        ${exercisesHtml}
 
-        <button class="add-btn" onclick="showModal()">+ ДОБАВИТЬ УПРАЖНЕНИЕ</button>
+        <button id="addExerciseBtn" class="add-btn">+ ДОБАВИТЬ УПРАЖНЕНИЕ</button>
     `;
 
-    document.getElementById('workoutName').oninput = (e) => {
-        state.currentWorkout.name = e.target.value || 'Тренировка';
-    };
+    const nameInput = document.getElementById('workoutName');
+    if (nameInput) {
+        nameInput.oninput = (e) => {
+            state.currentWorkout.name = e.target.value || 'Тренировка';
+        };
+    }
 
     actionBar.style.display = state.currentWorkout.exercises.length > 0 ? 'block' : 'none';
+
+    document.getElementById('addExerciseBtn').onclick = () => {
+        modal.classList.add('show');
+    };
 }
 
-// Удалить упражнение
+// ========== УДАЛЕНИЕ УПРАЖНЕНИЯ ==========
 window.removeExercise = function(index) {
     state.currentWorkout.exercises.splice(index, 1);
     showWorkoutCreator();
-};
-
-// Показать модальное окно
-window.showModal = function() {
-    modal.classList.add('show');
 };
 
 // ========== ХРОНИКИ ==========
@@ -237,7 +242,7 @@ function showHistory() {
             <div class="empty-history">
                 <h2 class="empty-title">📜 ХРОНИКИ ПУСТЫ</h2>
                 <p class="empty-text">Твои подвиги ещё не записаны в свитки...</p>
-                <button class="empty-btn" onclick="showSection('workout')">
+                <button onclick="showSection('workout')" class="empty-btn">
                     🏛️ СОЗДАТЬ ПЕРВЫЙ ПОДВИГ
                 </button>
             </div>
@@ -246,48 +251,89 @@ function showHistory() {
         return;
     }
 
+    let historyHtml = '<div class="history-scroll">';
+
     // Группировка по датам
     const grouped = {};
-    [...state.history].reverse().forEach(w => {
-        const date = new Date(w.date).toLocaleDateString('ru-RU');
+    [...state.history].reverse().forEach(workout => {
+        const date = new Date(workout.date).toLocaleDateString('ru-RU');
         if (!grouped[date]) grouped[date] = [];
-        grouped[date].push(w);
+        grouped[date].push(workout);
     });
 
-    const historyHtml = Object.entries(grouped).map(([date, workouts]) => `
-        <h3 class="history-date-header">📅 ${date}</h3>
-        ${workouts.map(w => `
-            <div class="history-item">
-                <div class="history-header">
-                    <span class="history-name">🏛️ ${w.name}</span>
-                    <span class="history-time">${new Date(w.date).toLocaleTimeString('ru-RU', {hour: '2-digit', minute:'2-digit'})}</span>
-                </div>
-                <div class="history-exercises">
-                    ${w.exercises.slice(0,3).map(ex =>
-                        `<div class="history-ex-item">• ${ex.name} (${ex.sets}×${ex.reps} × ${ex.weight}кг)</div>`
-                    ).join('')}
-                    ${w.exercises.length > 3 ? `<div class="history-ex-more">... и ещё ${w.exercises.length-3}</div>` : ''}
-                </div>
-                <div class="history-footer">
-                    <span class="history-count">${w.exercises.length} упражнений</span>
-                    <button class="history-delete" onclick="deleteWorkout('${w.id}')">🗑️</button>
-                </div>
-            </div>
-        `).join('')}
-    `).join('');
+    Object.keys(grouped).forEach(date => {
+        historyHtml += `<h3 class="history-date-header">📅 ${date}</h3>`;
 
-    const totalExercises = state.history.reduce((a, w) => a + w.exercises.length, 0);
-    const totalWeight = Math.round(state.history.reduce((a, w) => a + w.exercises.reduce((s, ex) => s + ex.weight * ex.sets * ex.reps, 0), 0));
+        grouped[date].forEach(workout => {
+            const time = new Date(workout.date).toLocaleTimeString('ru-RU', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            let exercisesPreview = '';
+            workout.exercises.slice(0, 3).forEach(ex => {
+                exercisesPreview += `
+                    <div class="history-ex-item">
+                        • ${ex.name} (${ex.sets}×${ex.reps} × ${ex.weight}кг)
+                    </div>
+                `;
+            });
+
+            if (workout.exercises.length > 3) {
+                exercisesPreview += `
+                    <div class="history-ex-more">
+                        ... и ещё ${workout.exercises.length - 3}
+                    </div>
+                `;
+            }
+
+            historyHtml += `
+                <div class="history-item" data-id="${workout.id}">
+                    <div class="history-header">
+                        <span class="history-name">🏛️ ${workout.name}</span>
+                        <span class="history-time">${time}</span>
+                    </div>
+                    <div class="history-exercises">
+                        ${exercisesPreview}
+                    </div>
+                    <div class="history-footer">
+                        <span class="history-count">${workout.exercises.length} упражнений</span>
+                        <button class="history-delete" onclick="deleteWorkout('${workout.id}')" title="Удалить">🗑️</button>
+                    </div>
+                </div>
+            `;
+        });
+    });
+
+    historyHtml += '</div>';
+
+    // Статистика
+    const totalExercises = state.history.reduce((acc, w) => acc + w.exercises.length, 0);
+    const totalWeight = Math.round(state.history.reduce((acc, w) => {
+        return acc + w.exercises.reduce((sum, ex) => sum + (ex.weight * ex.sets * ex.reps), 0);
+    }, 0));
 
     contentEl.innerHTML = `
         <h2 class="section-title">📜 ХРОНИКИ ГЕРОЯ</h2>
+
         <div class="stats-bar">
-            <div class="stat-item"><span class="stat-value">${state.history.length}</span><span class="stat-label">тренировок</span></div>
-            <div class="stat-item"><span class="stat-value">${totalExercises}</span><span class="stat-label">упражнений</span></div>
-            <div class="stat-item"><span class="stat-value">${totalWeight}</span><span class="stat-label">кг</span></div>
+            <div class="stat-item">
+                <span class="stat-value">${state.history.length}</span>
+                <span class="stat-label">тренировок</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value">${totalExercises}</span>
+                <span class="stat-label">упражнений</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value">${totalWeight}</span>
+                <span class="stat-label">кг</span>
+            </div>
         </div>
-        <div class="history-scroll">${historyHtml}</div>
+
+        ${historyHtml}
     `;
+
     actionBar.style.display = 'none';
 }
 
@@ -297,18 +343,23 @@ function showOracle() {
         "«Сила приходит не от мышц, а от духа, закалённого испытаниями»",
         "«Тень героя длиннее его тела, если герой много тренируется»",
         "«Ахиллес был уязвим лишь в пятку. Найди свою пятку и укрепи её»",
-        "«Геракл начинал с одного камня. Ты начинаешь с одного подхода»"
+        "«Геракл начинал с одного камня. Ты начинаешь с одного подхода»",
+        "«Река Стикс течёт через каждого, кто не боится пота»"
     ];
+
+    const randomProphecy = prophecies[Math.floor(Math.random() * prophecies.length)];
 
     contentEl.innerHTML = `
         <div class="oracle-container">
             <h2 class="oracle-title">🔮 ИЗРЕЧЕНИЕ ОРАКУЛА</h2>
             <div class="oracle-icon">🏺</div>
-            <p class="oracle-text">"${prophecies[Math.floor(Math.random() * prophecies.length)]}"</p>
-            <p class="oracle-author">— Пифия, жрица Аполлона</p>
-            <button class="oracle-btn" onclick="showOracle()">🎲 НОВОЕ ПРОРОЧЕСТВО</button>
+            <p class="oracle-text">"${randomProphecy}"</p>
+            <p class="oracle-author">— Пифия</p>
+            <button id="newOracleBtn" class="oracle-btn">🎲 НОВОЕ ПРОРОЧЕСТВО</button>
         </div>
     `;
+
+    document.getElementById('newOracleBtn').onclick = showOracle;
     actionBar.style.display = 'none';
 }
 
@@ -324,7 +375,11 @@ modalForm.onsubmit = (e) => {
     };
 
     if (!exercise.name) {
-        tg.showPopup({ title: 'Ошибка', message: 'Введите название упражнения!', buttons: [{ type: 'ok' }] });
+        tg.showPopup({
+            title: 'Ошибка',
+            message: 'Введите название упражнения!',
+            buttons: [{ type: 'ok' }]
+        });
         return;
     }
 
@@ -349,31 +404,55 @@ modal.onclick = (e) => {
 // ========== СОХРАНЕНИЕ ==========
 saveBtn.onclick = () => {
     if (state.currentWorkout.exercises.length === 0) {
-        tg.showPopup({ title: 'Ошибка', message: 'Добавь хотя бы одно упражнение!', buttons: [{ type: 'ok' }] });
+        tg.showPopup({
+            title: 'Ошибка',
+            message: 'Добавь хотя бы одно упражнение!',
+            buttons: [{ type: 'ok' }]
+        });
         return;
     }
 
-    const workout = {
+    const workoutRecord = {
         id: Date.now().toString(),
-        name: state.currentWorkout.name,
+        name: state.currentWorkout.name || 'Тренировка',
         date: new Date().toISOString(),
-        exercises: [...state.currentWorkout.exercises],
+        exercises: JSON.parse(JSON.stringify(state.currentWorkout.exercises)),
         userId: state.user.id
     };
 
-    state.history.push(workout);
+    state.history.push(workoutRecord);
     saveToStorage();
-    sendWorkoutToBot(workout);
 
-    state.currentWorkout = { name: 'Тренировка', exercises: [], notes: '' };
+    try {
+        tg.sendData(JSON.stringify({
+            type: 'new_workout',
+            workout: workoutRecord
+        }));
+    } catch (error) {
+        console.error('Ошибка отправки:', error);
+    }
+
+    state.currentWorkout = {
+        name: 'Тренировка',
+        exercises: [],
+        notes: ''
+    };
+
     showSection('history');
 };
 
 // ========== МЕНЮ ==========
 menuCards.forEach(card => {
-    card.onclick = () => showSection(card.dataset.section);
+    card.onclick = () => {
+        const section = card.dataset.section;
+        showSection(section);
+    };
 });
 
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 loadFromStorage();
 showWelcome();
+
+// Делаем функции глобальными
+window.deleteWorkout = deleteWorkout;
+window.removeExercise = removeExercise;
