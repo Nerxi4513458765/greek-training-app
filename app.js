@@ -1,4 +1,4 @@
-// app.js - ПОЛНАЯ ВЕРСИЯ С УЛУЧШЕННЫМ ЛОГИРОВАНИЕМ
+// app.js - ПОЛНАЯ ВЕРСИЯ С ИСПРАВЛЕНИЕМ USER_ID
 
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 const tg = window.Telegram.WebApp;
@@ -288,10 +288,25 @@ function showTrainer() {
 
         document.getElementById('weeklyPlan').innerHTML = '<p style="color:#e6c87c; text-align:center">⚡ Генерирую план...</p>';
 
-        // Очищаем URL от лишних символов
+        // ПРОВЕРЯЕМ USER_ID
+        console.log('👤 Текущий user:', state.user);
+        console.log('👤 user.id:', state.user.id);
+
+        // ЕСЛИ USER_ID = 0 (тест в браузере), ИСПОЛЬЗУЕМ ЗАГЛУШКУ
+        let userId = state.user.id;
+        if (userId === 0) {
+            console.log('⚠️ Тестовый режим: используем заглушку user_id = 12345');
+            userId = 12345;
+        }
+
         const apiUrl = 'https://greek-training-bot-production-2cc5.up.railway.app/get_plan';
+        const requestData = {
+            user_id: userId,
+            focus: state.currentFocus
+        };
+
         console.log('📤 Отправка запроса на:', apiUrl);
-        console.log('📤 Данные запроса:', { user_id: state.user.id, focus: state.currentFocus });
+        console.log('📤 Данные запроса:', requestData);
 
         try {
             const response = await fetch(apiUrl, {
@@ -299,15 +314,14 @@ function showTrainer() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    user_id: state.user.id,
-                    focus: state.currentFocus
-                })
+                body: JSON.stringify(requestData)
             });
 
             console.log('📥 Статус ответа:', response.status);
 
             if (!response.ok) {
+                const errorText = await response.text();
+                console.error('❌ Текст ошибки:', errorText);
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
