@@ -1,4 +1,4 @@
-// app.js - ПОЛНЫЙ КОД С КРАСИВЫМИ КНОПКАМИ
+// app.js - РАБОЧАЯ ВЕРСИЯ С ТРЕНЕРОМ И КРАСИВЫМИ КНОПКАМИ
 
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 const tg = window.Telegram.WebApp;
@@ -40,7 +40,7 @@ function saveToStorage() {
     localStorage.setItem(`workouts_${state.user.id}`, JSON.stringify(state.history));
 }
 
-// ========== УДАЛЕНИЕ ==========
+// ========== УДАЛЕНИЕ ПО ДАТЕ ==========
 window.deleteWorkout = function(workoutDate, workoutName) {
     tg.showPopup({
         title: '⚠️ Удаление',
@@ -69,40 +69,31 @@ function showSection(section) {
 
     if (section === 'workout') showWorkoutCreator();
     else if (section === 'history') showHistory();
-    else if (section === 'trainer') showTrainer();
+    else if (section === 'trainer') showTrainer();  // Оракул → Тренер
     else if (section === 'today') showTodayTrial();
     else showWelcome();
 }
 
 // ========== ПРИВЕТСТВИЕ ==========
 function showWelcome() {
-    contentEl.innerHTML = `
-        <div class="welcome-message">
-            <h2 class="welcome-title">Да начнутся испытания, ${state.user.first_name}!</h2>
-            <p class="welcome-text">Выбери раздел в меню</p>
-            <div class="welcome-icon">🏛️</div>
-        </div>
-    `;
+    contentEl.innerHTML = `<div style="text-align:center;padding:40px"><h2>Да начнутся испытания, ${state.user.first_name}!</h2></div>`;
     actionBar.style.display = 'none';
 }
 
-// ========== ТОТ САМЫЙ ИНТЕРФЕЙС СОЗДАНИЯ ==========
+// ========== ТОТ САМЫЙ ИНТЕРФЕЙС (ТВОЙ РАБОЧИЙ) ==========
 function showWorkoutCreator() {
     let exercisesHtml = '';
 
     if (state.currentWorkout.exercises.length === 0) {
-        exercisesHtml = '<p class="empty-message">❗ Ещё нет упражнений. Начни свой подвиг!</p>';
+        exercisesHtml = '<p style="color:#b87333; padding:20px; text-align:center">❗ Ещё нет упражнений. Начни свой подвиг!</p>';
     } else {
-        exercisesHtml = '<div class="exercises-list">';
+        exercisesHtml = '<div style="margin-bottom:20px">';
         state.currentWorkout.exercises.forEach((ex, index) => {
             exercisesHtml += `
-                <div class="exercise-item">
-                    <span class="exercise-name">🏹 ${ex.name}</span>
-                    <div class="exercise-details">
-                        <span>${ex.sets}×${ex.reps}</span>
-                        <span class="exercise-weight">${ex.weight} кг</span>
-                    </div>
-                    <button class="remove-exercise" onclick="removeExercise(${index})">✕</button>
+                <div style="background:#1a1510; border-left:4px solid #b87333; border-radius:8px; padding:12px; margin-bottom:8px; display:flex; justify-content:space-between">
+                    <span style="color:#e6c87c">🏹 ${ex.name}</span>
+                    <span>${ex.sets}×${ex.reps} × ${ex.weight}кг</span>
+                    <button onclick="removeExercise(${index})" style="background:none; border:none; color:#8b1e1e; font-size:20px; cursor:pointer">✕</button>
                 </div>
             `;
         });
@@ -110,16 +101,19 @@ function showWorkoutCreator() {
     }
 
     contentEl.innerHTML = `
-        <h2 class="section-title">🏛️ СОЗДАНИЕ ПОДВИГА</h2>
+        <h2 style="font-family: 'Cinzel', serif; color: #e6c87c; margin-bottom: 20px;">🏛️ СОЗДАНИЕ ПОДВИГА</h2>
 
-        <div class="workout-name-section">
-            <label class="workout-label">📜 НАЗВАНИЕ ТРЕНИРОВКИ</label>
-            <input type="text" id="workoutName" class="workout-name-input" value="${state.currentWorkout.name}">
+        <div style="margin-bottom: 24px;">
+            <label style="display: block; color: #e6c87c; margin-bottom: 8px;">📜 НАЗВАНИЕ ТРЕНИРОВКИ</label>
+            <input type="text" id="workoutName" value="${state.currentWorkout.name}"
+                   style="width:100%; padding:12px; background:#1a1510; border:2px solid #b87333; border-radius:8px; color:#e0d7c6; font-size:18px;">
         </div>
 
         ${exercisesHtml}
 
-        <button id="addExerciseBtn" class="add-btn">+ ДОБАВИТЬ УПРАЖНЕНИЕ</button>
+        <button id="addExerciseBtn" style="width:100%; padding:14px; background:#b87333; border:none; border-radius:8px; color:#0a0806; font-family:'Cinzel'; font-size:16px; font-weight:700; cursor:pointer; margin-top:16px;">
+            + ДОБАВИТЬ УПРАЖНЕНИЕ
+        </button>
     `;
 
     document.getElementById('workoutName').oninput = (e) => {
@@ -142,10 +136,10 @@ window.removeExercise = function(index) {
 function showHistory() {
     if (state.history.length === 0) {
         contentEl.innerHTML = `
-            <div class="empty-history">
-                <h2 class="empty-title">📜 ХРОНИКИ ПУСТЫ</h2>
-                <p class="empty-text">Твои подвиги ещё не записаны в свитки...</p>
-                <button onclick="showSection('workout')" class="empty-btn">
+            <div style="text-align:center; padding:40px">
+                <h2 style="color:#e6c87c">📜 ХРОНИКИ ПУСТЫ</h2>
+                <p style="margin:20px">Твои подвиги ещё не записаны в свитки...</p>
+                <button onclick="showSection('workout')" style="padding:15px 30px; background:#b87333; border:none; border-radius:10px; color:#0a0806; font-family:'Cinzel'; cursor:pointer">
                     🏛️ СОЗДАТЬ ПЕРВЫЙ ПОДВИГ
                 </button>
             </div>
@@ -154,28 +148,25 @@ function showHistory() {
         return;
     }
 
-    let html = '<div class="history-scroll">';
+    let html = '<div style="max-height:400px; overflow-y:auto">';
 
     [...state.history].reverse().forEach(w => {
         const date = new Date(w.date).toLocaleDateString('ru-RU');
         const time = new Date(w.date).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'});
 
         html += `
-            <div class="history-item">
-                <div class="history-header">
-                    <span class="history-name">🏛️ ${w.name}</span>
-                    <span class="history-time">${date} ${time}</span>
+            <div style="background:#1a1510; border-left:4px solid #b87333; border-radius:8px; padding:15px; margin-bottom:15px">
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px">
+                    <span style="color:#e6c87c">🏛️ ${w.name}</span>
+                    <span style="color:#b87333">${date} ${time}</span>
                 </div>
-                <div class="history-exercises">
-                    ${w.exercises.slice(0,3).map(ex =>
-                        `<div class="history-ex-item">• ${ex.name} (${ex.sets}×${ex.reps} × ${ex.weight}кг)</div>`
-                    ).join('')}
-                    ${w.exercises.length > 3 ?
-                        `<div class="history-ex-more">... и ещё ${w.exercises.length-3}</div>` : ''}
+                <div style="margin:10px 0; font-size:14px">
+                    ${w.exercises.slice(0,3).map(ex => `<div>• ${ex.name} (${ex.sets}×${ex.reps} × ${ex.weight}кг)</div>`).join('')}
+                    ${w.exercises.length > 3 ? `<div style="color:#b87333">... и ещё ${w.exercises.length-3}</div>` : ''}
                 </div>
-                <div class="history-footer">
-                    <span class="history-count">${w.exercises.length} упражнений</span>
-                    <button class="history-delete" onclick="deleteWorkout('${w.date}', '${w.name}')">🗑️</button>
+                <div style="display:flex; justify-content:space-between; margin-top:10px">
+                    <span style="color:#b87333">${w.exercises.length} упражнений</span>
+                    <button onclick="deleteWorkout('${w.date}', '${w.name}')" style="background:none; border:none; color:#8b1e1e; font-size:20px; cursor:pointer">🗑️</button>
                 </div>
             </div>
         `;
@@ -187,57 +178,26 @@ function showHistory() {
     const weight = Math.round(state.history.reduce((a, w) => a + w.exercises.reduce((s, ex) => s + ex.weight * ex.sets * ex.reps, 0), 0));
 
     contentEl.innerHTML = `
-        <h2 class="section-title">📜 ХРОНИКИ ГЕРОЯ</h2>
-        <div class="stats-bar">
-            <div class="stat-item">
-                <span class="stat-value">${state.history.length}</span>
-                <span class="stat-label">тренировок</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-value">${total}</span>
-                <span class="stat-label">упражнений</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-value">${weight}</span>
-                <span class="stat-label">кг</span>
-            </div>
+        <h2 style="font-family:'Cinzel'; color:#e6c87c; margin-bottom:20px">📜 ХРОНИКИ ГЕРОЯ</h2>
+        <div style="display:flex; justify-content:space-around; background:#1a1510; border:1px solid #b87333; border-radius:10px; padding:15px; margin-bottom:20px">
+            <div><span style="display:block; font-size:24px; color:#e6c87c">${state.history.length}</span><span>тренировок</span></div>
+            <div><span style="display:block; font-size:24px; color:#e6c87c">${total}</span><span>упражнений</span></div>
+            <div><span style="display:block; font-size:24px; color:#e6c87c">${weight}</span><span>кг</span></div>
         </div>
         ${html}
     `;
     actionBar.style.display = 'none';
 }
 
-// ========== ПОДВИГ ДНЯ ==========
-function showTodayTrial() {
-    const trials = [
-        { name: 'Марафон Геродота', desc: '5000 шагов или 30 мин бега', reward: '🏃 +50 выносливости' },
-        { name: 'Завтрак титанов', desc: '100 отжиманий', reward: '💪 +30 силы' },
-        { name: 'Камень Сизифа', desc: 'Приседания 4×15', reward: '🦵 +40 силы ног' }
-    ];
-    const t = trials[Math.floor(Math.random() * trials.length)];
-
-    contentEl.innerHTML = `
-        <div class="trial-container">
-            <h2 class="trial-title">⚡ ПОДВИГ ДНЯ</h2>
-            <div class="trial-icon">🏛️</div>
-            <h3 class="trial-name">${t.name}</h3>
-            <p class="trial-description">${t.desc}</p>
-            <p class="trial-reward">${t.reward}</p>
-            <button onclick="showSection('workout')" class="trial-btn">🏛️ ПРИНЯТЬ</button>
-        </div>
-    `;
-    actionBar.style.display = 'none';
-}
-
-// ========== ТРЕНЕР ==========
+// ========== ТРЕНЕР (ВМЕСТО ОРАКУЛА) ==========
 function showTrainer() {
     contentEl.innerHTML = `
-        <div class="trainer-container">
-            <h2 class="section-title">🏋️ ПЕРСОНАЛЬНЫЙ ТРЕНЕР</h2>
+        <div style="text-align:center; padding:20px">
+            <h2 style="font-family:'Cinzel'; color:#e6c87c; margin-bottom:20px">🏋️ ПЕРСОНАЛЬНЫЙ ТРЕНЕР</h2>
 
-            <div class="focus-section">
-                <h3 class="focus-title">Выбери фокус недели:</h3>
-                <div class="focus-grid">
+            <div style="margin-bottom:30px">
+                <h3 style="color:#e6c87c; margin-bottom:15px">Выбери фокус недели:</h3>
+                <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:10px">
                     <button class="focus-btn" data-focus="грудь">💪 ГРУДЬ</button>
                     <button class="focus-btn" data-focus="спина">🔱 СПИНА</button>
                     <button class="focus-btn" data-focus="ноги">🦵 НОГИ</button>
@@ -247,20 +207,21 @@ function showTrainer() {
                 </div>
             </div>
 
-            <div id="weeklyPlan" class="weekly-plan">
-                <div class="plan-placeholder">
-                    <p>Выбери фокус и нажми кнопку</p>
-                </div>
+            <div id="weeklyPlan" style="margin:20px 0; min-height:100px">
+                <p style="color:#b87333; text-align:center">Выбери фокус и нажми кнопку</p>
             </div>
 
-            <button id="generatePlanBtn" class="trainer-btn">🎯 СГЕНЕРИРОВАТЬ ПЛАН</button>
+            <button id="generatePlanBtn" style="width:100%; padding:14px; background:#b87333; border:none; border-radius:8px; color:#0a0806; font-family:'Cinzel'; font-size:16px; font-weight:700; cursor:pointer">
+                🎯 СГЕНЕРИРОВАТЬ ПЛАН
+            </button>
         </div>
     `;
 
     document.querySelectorAll('.focus-btn').forEach(btn => {
         btn.addEventListener('click', function() {
-            document.querySelectorAll('.focus-btn').forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
+            document.querySelectorAll('.focus-btn').forEach(b => b.style.background = '#1a1510');
+            this.style.background = '#b87333';
+            this.style.color = '#0a0806';
             state.currentFocus = this.dataset.focus;
         });
     });
@@ -275,104 +236,34 @@ function showTrainer() {
             return;
         }
 
-        document.getElementById('weeklyPlan').innerHTML = '<div class="loading">⚡ Генерирую план...</div>';
+        document.getElementById('weeklyPlan').innerHTML = '<p style="color:#e6c87c; text-align:center">⚡ Генерирую план...</p>';
         tg.sendData(JSON.stringify({ type: 'get_plan', focus: state.currentFocus }));
     });
 
     actionBar.style.display = 'none';
 }
 
-// ========== ОТОБРАЖЕНИЕ ПЛАНА ==========
-window.displayWeeklyPlan = function(plan) {
-    state.currentPlan = plan;
+// ========== ПОДВИГ ДНЯ ==========
+function showTodayTrial() {
+    const trials = [
+        { name: 'Марафон Геродота', desc: '5000 шагов или 30 мин бега' },
+        { name: 'Завтрак титанов', desc: '100 отжиманий' }
+    ];
+    const t = trials[Math.floor(Math.random() * trials.length)];
 
-    let html = '<div class="plan-container">';
-    const days = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
-
-    days.forEach(day => {
-        if (plan[day]) {
-            html += `
-                <div class="day-card ${plan[day].exercises.length === 0 ? 'rest-day' : ''}">
-                    <div class="day-header">
-                        <h3>${plan[day].name || day}</h3>
-                        ${plan[day].exercises.length > 0 ?
-                            '<button class="edit-day-btn" onclick="editDay(\'' + day + '\')">✎</button>' :
-                            '<span class="rest-badge">😴 ОТДЫХ</span>'}
-                    </div>
-            `;
-
-            if (plan[day].exercises.length > 0) {
-                html += '<div class="day-exercises">';
-                plan[day].exercises.forEach((ex, idx) => {
-                    html += `
-                        <div class="exercise-card">
-                            <span class="exercise-name">${ex.name}</span>
-                            <span class="exercise-details">${ex.sets}×${ex.reps}</span>
-                            <span class="exercise-weight">${ex.weight} кг</span>
-                            <button class="edit-exercise-btn" onclick="editExercise('${day}', ${idx})">✎</button>
-                        </div>
-                    `;
-                });
-                html += '</div>';
-            }
-            html += '</div>';
-        }
-    });
-
-    html += '</div>';
-
-    html += `
-        <div class="plan-actions">
-            <button onclick="usePlan()" class="save-plan-btn">💾 ИСПОЛЬЗОВАТЬ ПЛАН</button>
-            <button onclick="resetPlan()" class="reset-plan-btn">🔄 НОВЫЙ ПЛАН</button>
+    contentEl.innerHTML = `
+        <div style="text-align:center; padding:20px">
+            <h2 style="color:#e6c87c">⚡ ПОДВИГ ДНЯ</h2>
+            <div style="font-size:60px; margin:20px">🏛️</div>
+            <h3 style="color:#e6c87c; font-size:28px">${t.name}</h3>
+            <p style="margin:20px">${t.desc}</p>
+            <button onclick="showSection('workout')" style="padding:15px 30px; background:#b87333; border:none; border-radius:10px; color:#0a0806; font-family:'Cinzel'; cursor:pointer">
+                🏛️ ПРИНЯТЬ
+            </button>
         </div>
     `;
-
-    document.getElementById('weeklyPlan').innerHTML = html;
-};
-
-// ========== РЕДАКТИРОВАНИЕ ==========
-window.editExercise = function(day, exerciseIdx) {
-    const exercise = state.currentPlan[day].exercises[exerciseIdx];
-
-    document.getElementById('exName').value = exercise.name;
-    document.getElementById('exSets').value = exercise.sets;
-    document.getElementById('exReps').value = exercise.reps;
-    document.getElementById('exWeight').value = exercise.weight;
-
-    modal.classList.add('show');
-
-    window.saveEditedExercise = function() {
-        exercise.name = document.getElementById('exName').value;
-        exercise.sets = parseInt(document.getElementById('exSets').value);
-        exercise.reps = parseInt(document.getElementById('exReps').value);
-        exercise.weight = parseInt(document.getElementById('exWeight').value);
-
-        displayWeeklyPlan(state.currentPlan);
-        modal.classList.remove('show');
-    };
-};
-
-window.usePlan = function() {
-    state.currentWorkout.exercises = [];
-    const days = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
-
-    days.forEach(day => {
-        if (state.currentPlan[day]?.exercises) {
-            state.currentWorkout.exercises.push(...state.currentPlan[day].exercises);
-        }
-    });
-
-    state.currentWorkout.name = `План: ${state.currentFocus || 'баланс'}`;
-    showSection('workout');
-};
-
-window.resetPlan = function() {
-    document.querySelectorAll('.focus-btn').forEach(b => b.classList.remove('active'));
-    state.currentFocus = null;
-    state.currentPlan = null;
-    showTrainer();
-};
+    actionBar.style.display = 'none';
+}
 
 // ========== МОДАЛКА ==========
 modalForm.onsubmit = (e) => {
@@ -433,3 +324,60 @@ menuCards.forEach(card => {
 // ========== СТАРТ ==========
 loadFromStorage();
 showWelcome();
+
+// ========== ДОПОЛНИТЕЛЬНО: ОТОБРАЖЕНИЕ ПЛАНА ==========
+window.displayWeeklyPlan = function(plan) {
+    state.currentPlan = plan;
+
+    let html = '<div style="max-height:400px; overflow-y:auto">';
+    const days = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
+
+    days.forEach(day => {
+        if (plan[day]) {
+            html += `
+                <div style="background:#1a1510; border-left:4px solid #b87333; border-radius:8px; padding:15px; margin-bottom:15px">
+                    <h3 style="color:#e6c87c; margin-bottom:10px">${plan[day].name || day}</h3>
+            `;
+
+            if (plan[day].exercises.length > 0) {
+                plan[day].exercises.forEach(ex => {
+                    html += `
+                        <div style="display:flex; justify-content:space-between; margin:5px 0">
+                            <span>${ex.name}</span>
+                            <span>${ex.sets}×${ex.reps} × ${ex.weight}кг</span>
+                        </div>
+                    `;
+                });
+            } else {
+                html += '<p style="color:#b87333">😴 Отдых</p>';
+            }
+
+            html += '</div>';
+        }
+    });
+
+    html += '</div>';
+
+    html += `
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:20px">
+            <button onclick="usePlan()" style="padding:12px; background:#2c4a3b; color:#e3f0da; border:none; border-radius:8px; cursor:pointer">💾 ИСПОЛЬЗОВАТЬ</button>
+            <button onclick="showTrainer()" style="padding:12px; background:#2a241e; color:#e0d7c6; border:none; border-radius:8px; cursor:pointer">🔄 НОВЫЙ ПЛАН</button>
+        </div>
+    `;
+
+    document.getElementById('weeklyPlan').innerHTML = html;
+};
+
+window.usePlan = function() {
+    state.currentWorkout.exercises = [];
+    const days = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
+
+    days.forEach(day => {
+        if (state.currentPlan[day]?.exercises) {
+            state.currentWorkout.exercises.push(...state.currentPlan[day].exercises);
+        }
+    });
+
+    state.currentWorkout.name = `План: ${state.currentFocus || 'баланс'}`;
+    showSection('workout');
+};
