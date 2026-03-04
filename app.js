@@ -1,4 +1,4 @@
-// app.js - ПОЛНАЯ ВЕРСИЯ С ОТЛАДКОЙ
+// app.js - ПОЛНАЯ ВЕРСИЯ С УЛУЧШЕННЫМ ЛОГИРОВАНИЕМ
 
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 const tg = window.Telegram.WebApp;
@@ -288,12 +288,17 @@ function showTrainer() {
 
         document.getElementById('weeklyPlan').innerHTML = '<p style="color:#e6c87c; text-align:center">⚡ Генерирую план...</p>';
 
-        try {
-            console.log('📤 Отправляем запрос с focus:', state.currentFocus);
+        // Очищаем URL от лишних символов
+        const apiUrl = 'https://greek-training-bot-production-2cc5.up.railway.app/get_plan';
+        console.log('📤 Отправка запроса на:', apiUrl);
+        console.log('📤 Данные запроса:', { user_id: state.user.id, focus: state.currentFocus });
 
-            const response = await fetch('https://greek-training-bot-production-2cc5.up.railway.app/get_plan', {
+        try {
+            const response = await fetch(apiUrl, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                },
                 body: JSON.stringify({
                     user_id: state.user.id,
                     focus: state.currentFocus
@@ -302,15 +307,14 @@ function showTrainer() {
 
             console.log('📥 Статус ответа:', response.status);
 
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
             const result = await response.json();
             console.log('📦 Данные от сервера:', result);
 
             if (result.success) {
-                console.log('✅ План получен, структура:', Object.keys(result.plan));
-                // Проверим первый день плана
-                const firstDay = Object.keys(result.plan)[0];
-                console.log('Пример дня:', firstDay, result.plan[firstDay]);
-
                 displayWeeklyPlan(result.plan);
             } else {
                 throw new Error(result.error || 'Ошибка генерации плана');
