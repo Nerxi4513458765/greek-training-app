@@ -1,4 +1,4 @@
-// app.js - РАБОЧАЯ ВЕРСИЯ С ТРЕНЕРОМ И КРАСИВЫМИ КНОПКАМИ
+// app.js - ПОЛНАЯ РАБОЧАЯ ВЕРСИЯ С КНОПКАМИ ТРЕНЕРА КАК НА ФОТО
 
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 const tg = window.Telegram.WebApp;
@@ -69,7 +69,7 @@ function showSection(section) {
 
     if (section === 'workout') showWorkoutCreator();
     else if (section === 'history') showHistory();
-    else if (section === 'trainer') showTrainer();  // Оракул → Тренер
+    else if (section === 'trainer') showTrainer();
     else if (section === 'today') showTodayTrial();
     else showWelcome();
 }
@@ -80,7 +80,7 @@ function showWelcome() {
     actionBar.style.display = 'none';
 }
 
-// ========== ТОТ САМЫЙ ИНТЕРФЕЙС (ТВОЙ РАБОЧИЙ) ==========
+// ========== ТВОЙ ИНТЕРФЕЙС СОЗДАНИЯ ==========
 function showWorkoutCreator() {
     let exercisesHtml = '';
 
@@ -189,7 +189,7 @@ function showHistory() {
     actionBar.style.display = 'none';
 }
 
-// ========== ТРЕНЕР (ВМЕСТО ОРАКУЛА) ==========
+// ========== ТРЕНЕР (КНОПКИ КАК НА ФОТО) ==========
 function showTrainer() {
     contentEl.innerHTML = `
         <div style="text-align:center; padding:20px">
@@ -198,12 +198,12 @@ function showTrainer() {
             <div style="margin-bottom:30px">
                 <h3 style="color:#e6c87c; margin-bottom:15px">Выбери фокус недели:</h3>
                 <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:10px">
-                    <button class="focus-btn" data-focus="грудь">💪 ГРУДЬ</button>
-                    <button class="focus-btn" data-focus="спина">🔱 СПИНА</button>
-                    <button class="focus-btn" data-focus="ноги">🦵 НОГИ</button>
-                    <button class="focus-btn" data-focus="плечи">🏔️ ПЛЕЧИ</button>
-                    <button class="focus-btn" data-focus="руки">💪 РУКИ</button>
-                    <button class="focus-btn" data-focus="все">⚖️ БАЛАНС</button>
+                    <button class="focus-btn" data-focus="грудь" style="background:#1a1510; border:2px solid #b87333; color:#e0d7c6; padding:12px; border-radius:10px; font-family:'Cinzel'; font-size:14px; font-weight:bold; cursor:pointer; transition:all 0.3s">💪 ГРУДЬ</button>
+                    <button class="focus-btn" data-focus="спина" style="background:#1a1510; border:2px solid #b87333; color:#e0d7c6; padding:12px; border-radius:10px; font-family:'Cinzel'; font-size:14px; font-weight:bold; cursor:pointer; transition:all 0.3s">🔱 СПИНА</button>
+                    <button class="focus-btn" data-focus="ноги" style="background:#1a1510; border:2px solid #b87333; color:#e0d7c6; padding:12px; border-radius:10px; font-family:'Cinzel'; font-size:14px; font-weight:bold; cursor:pointer; transition:all 0.3s">🦵 НОГИ</button>
+                    <button class="focus-btn" data-focus="плечи" style="background:#1a1510; border:2px solid #b87333; color:#e0d7c6; padding:12px; border-radius:10px; font-family:'Cinzel'; font-size:14px; font-weight:bold; cursor:pointer; transition:all 0.3s">🏔️ ПЛЕЧИ</button>
+                    <button class="focus-btn" data-focus="руки" style="background:#1a1510; border:2px solid #b87333; color:#e0d7c6; padding:12px; border-radius:10px; font-family:'Cinzel'; font-size:14px; font-weight:bold; cursor:pointer; transition:all 0.3s">💪 РУКИ</button>
+                    <button class="focus-btn" data-focus="все" style="background:#1a1510; border:2px solid #b87333; color:#e0d7c6; padding:12px; border-radius:10px; font-family:'Cinzel'; font-size:14px; font-weight:bold; cursor:pointer; transition:all 0.3s">⚖️ БАЛАНС</button>
                 </div>
             </div>
 
@@ -211,17 +211,38 @@ function showTrainer() {
                 <p style="color:#b87333; text-align:center">Выбери фокус и нажми кнопку</p>
             </div>
 
-            <button id="generatePlanBtn" style="width:100%; padding:14px; background:#b87333; border:none; border-radius:8px; color:#0a0806; font-family:'Cinzel'; font-size:16px; font-weight:700; cursor:pointer">
-                🎯 СГЕНЕРИРОВАТЬ ПЛАН
+            <button id="generatePlanBtn" style="width:100%; padding:14px; background:#b87333; border:none; border-radius:8px; color:#0a0806; font-family:'Cinzel'; font-size:16px; font-weight:700; cursor:pointer; margin-top:10px">
+                🎯 СТЕНЕРИРОВАТЬ ПЛАН
             </button>
         </div>
     `;
 
+    // Добавляем стили для активной кнопки
+    const style = document.createElement('style');
+    style.textContent = `
+        .focus-btn:hover {
+            background: #b87333 !important;
+            color: #0a0806 !important;
+            transform: translateY(-2px);
+        }
+        .focus-btn.active {
+            background: #b87333 !important;
+            color: #0a0806 !important;
+            border-color: #e6c87c !important;
+        }
+    `;
+    document.head.appendChild(style);
+
     document.querySelectorAll('.focus-btn').forEach(btn => {
         btn.addEventListener('click', function() {
-            document.querySelectorAll('.focus-btn').forEach(b => b.style.background = '#1a1510');
+            document.querySelectorAll('.focus-btn').forEach(b => {
+                b.style.background = '#1a1510';
+                b.style.color = '#e0d7c6';
+                b.classList.remove('active');
+            });
             this.style.background = '#b87333';
             this.style.color = '#0a0806';
+            this.classList.add('active');
             state.currentFocus = this.dataset.focus;
         });
     });
@@ -325,7 +346,7 @@ menuCards.forEach(card => {
 loadFromStorage();
 showWelcome();
 
-// ========== ДОПОЛНИТЕЛЬНО: ОТОБРАЖЕНИЕ ПЛАНА ==========
+// ========== ОТОБРАЖЕНИЕ ПЛАНА ==========
 window.displayWeeklyPlan = function(plan) {
     state.currentPlan = plan;
 
@@ -368,6 +389,7 @@ window.displayWeeklyPlan = function(plan) {
     document.getElementById('weeklyPlan').innerHTML = html;
 };
 
+// ========== ИСПОЛЬЗОВАТЬ ПЛАН ==========
 window.usePlan = function() {
     state.currentWorkout.exercises = [];
     const days = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
