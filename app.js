@@ -1,4 +1,4 @@
-// app.js - ПОЛНАЯ РАБОЧАЯ ВЕРСИЯ С КНОПКАМИ ТРЕНЕРА КАК НА ФОТО
+// app.js - ПОЛНАЯ РАБОЧАЯ ВЕРСИЯ С СИММЕТРИЧНЫМИ КНОПКАМИ
 
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 const tg = window.Telegram.WebApp;
@@ -189,7 +189,7 @@ function showHistory() {
     actionBar.style.display = 'none';
 }
 
-// ========== ТРЕНЕР (КНОПКИ КАК НА ФОТО) ==========
+// ========== ТРЕНЕР (СИММЕТРИЧНЫЕ КНОПКИ) ==========
 function showTrainer() {
     contentEl.innerHTML = `
         <div style="text-align:center; padding:20px">
@@ -197,12 +197,21 @@ function showTrainer() {
 
             <div style="margin-bottom:30px">
                 <h3 style="color:#e6c87c; margin-bottom:15px">Выбери фокус недели:</h3>
-                <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:10px">
+
+                <!-- Первый ряд: 2 кнопки -->
+                <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:10px">
                     <button class="focus-btn" data-focus="грудь" style="background:#1a1510; border:2px solid #b87333; color:#e0d7c6; padding:12px; border-radius:10px; font-family:'Cinzel'; font-size:14px; font-weight:bold; cursor:pointer; transition:all 0.3s">💪 ГРУДЬ</button>
                     <button class="focus-btn" data-focus="спина" style="background:#1a1510; border:2px solid #b87333; color:#e0d7c6; padding:12px; border-radius:10px; font-family:'Cinzel'; font-size:14px; font-weight:bold; cursor:pointer; transition:all 0.3s">🔱 СПИНА</button>
+                </div>
+
+                <!-- Второй ряд: 2 кнопки -->
+                <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:10px">
                     <button class="focus-btn" data-focus="ноги" style="background:#1a1510; border:2px solid #b87333; color:#e0d7c6; padding:12px; border-radius:10px; font-family:'Cinzel'; font-size:14px; font-weight:bold; cursor:pointer; transition:all 0.3s">🦵 НОГИ</button>
-                    <button class="focus-btn" data-focus="плечи" style="background:#1a1510; border:2px solid #b87333; color:#e0d7c6; padding:12px; border-radius:10px; font-family:'Cinzel'; font-size:14px; font-weight:bold; cursor:pointer; transition:all 0.3s">🏔️ ПЛЕЧИ</button>
                     <button class="focus-btn" data-focus="руки" style="background:#1a1510; border:2px solid #b87333; color:#e0d7c6; padding:12px; border-radius:10px; font-family:'Cinzel'; font-size:14px; font-weight:bold; cursor:pointer; transition:all 0.3s">💪 РУКИ</button>
+                </div>
+
+                <!-- Третий ряд: 1 кнопка во всю ширину -->
+                <div style="display:grid; grid-template-columns:1fr; gap:10px">
                     <button class="focus-btn" data-focus="все" style="background:#1a1510; border:2px solid #b87333; color:#e0d7c6; padding:12px; border-radius:10px; font-family:'Cinzel'; font-size:14px; font-weight:bold; cursor:pointer; transition:all 0.3s">⚖️ БАЛАНС</button>
                 </div>
             </div>
