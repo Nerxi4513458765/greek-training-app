@@ -1,4 +1,4 @@
-// app.js - ПОЛНАЯ РАБОЧАЯ ВЕРСИЯ С СИММЕТРИЧНЫМИ КНОПКАМИ
+// app.js - ПОЛНАЯ ВЕРСИЯ С КРАСИВОЙ ТАБЛИЦЕЙ ТРЕНИРОВОК
 
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 const tg = window.Telegram.WebApp;
@@ -295,7 +295,7 @@ function showTodayTrial() {
     actionBar.style.display = 'none';
 }
 
-// ========== МОДАЛКА ==========
+// ========== МОДАЛКА (ОБНОВЛЕННАЯ) ==========
 modalForm.onsubmit = (e) => {
     e.preventDefault();
 
@@ -308,21 +308,44 @@ modalForm.onsubmit = (e) => {
 
     if (!ex.name) return;
 
-    state.currentWorkout.exercises.push(ex);
+    if (window.currentEditMode === 'edit' && window.currentEditDay !== undefined && window.currentEditIndex !== undefined) {
+        // Редактируем существующее упражнение в плане
+        state.currentPlan[window.currentEditDay].exercises[window.currentEditIndex] = ex;
+        displayWeeklyPlan(state.currentPlan);
+    } else if (window.currentEditMode === 'add' && window.currentEditDay) {
+        // Добавляем новое упражнение в план
+        state.currentPlan[window.currentEditDay].exercises.push(ex);
+        displayWeeklyPlan(state.currentPlan);
+    } else {
+        // Обычное добавление в текущую тренировку
+        state.currentWorkout.exercises.push(ex);
+        showWorkoutCreator();
+    }
+
     modal.classList.remove('show');
     modalForm.reset();
-    showWorkoutCreator();
+
+    // Сбрасываем режим
+    window.currentEditDay = null;
+    window.currentEditIndex = null;
+    window.currentEditMode = null;
 };
 
 cancelModalBtn.onclick = () => {
     modal.classList.remove('show');
     modalForm.reset();
+    window.currentEditDay = null;
+    window.currentEditIndex = null;
+    window.currentEditMode = null;
 };
 
 modal.onclick = (e) => {
     if (e.target === modal) {
         modal.classList.remove('show');
         modalForm.reset();
+        window.currentEditDay = null;
+        window.currentEditIndex = null;
+        window.currentEditMode = null;
     }
 };
 
@@ -355,31 +378,94 @@ menuCards.forEach(card => {
 loadFromStorage();
 showWelcome();
 
-// ========== ОТОБРАЖЕНИЕ ПЛАНА ==========
+// ========== ОТОБРАЖЕНИЕ ПЛАНА С КРАСИВОЙ ТАБЛИЦЕЙ ==========
 window.displayWeeklyPlan = function(plan) {
     state.currentPlan = plan;
 
-    let html = '<div style="max-height:400px; overflow-y:auto">';
+    let html = '<div class="plan-container">';
     const days = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
 
     days.forEach(day => {
         if (plan[day]) {
+            // Определяем иконку для дня
+            const dayIcons = {
+                'понедельник': '🌙',
+                'вторник': '🔥',
+                'среда': '💧',
+                'четверг': '🌪️',
+                'пятница': '⚡',
+                'суббота': '✨',
+                'воскресенье': '☀️'
+            };
+
             html += `
-                <div style="background:#1a1510; border-left:4px solid #b87333; border-radius:8px; padding:15px; margin-bottom:15px">
-                    <h3 style="color:#e6c87c; margin-bottom:10px">${plan[day].name || day}</h3>
+                <div class="day-card ${plan[day].exercises.length === 0 ? 'rest-day' : ''}">
+                    <div class="day-header">
+                        <h3>${dayIcons[day] || '📅'} ${plan[day].name || day}</h3>
+                        ${plan[day].exercises.length > 0 ?
+                            '<span class="workout-badge">🏋️ ТРЕНИРОВКА</span>' :
+                            '<span class="rest-badge">😴 ДЕНЬ ОТДЫХА</span>'}
+                    </div>
             `;
 
             if (plan[day].exercises.length > 0) {
-                plan[day].exercises.forEach(ex => {
+                html += `
+                    <div class="workout-table-container">
+                        <table class="workout-table">
+                            <thead>
+                                <tr>
+                                    <th>🏋️ УПРАЖНЕНИЕ</th>
+                                    <th>⚡ ИНТЕНСИВНОСТЬ</th>
+                                    <th>🔄 ПОВТОРЕНИЯ</th>
+                                    <th>⚖️ ВЕС (КГ)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                plan[day].exercises.forEach((ex, idx) => {
+                    // Определяем интенсивность на основе количества подходов
+                    let intensity = 'Средняя';
+                    let intensityClass = 'medium-intensity';
+
+                    if (ex.sets >= 5) {
+                        intensity = 'Тяжёлая';
+                        intensityClass = 'hard-intensity';
+                    } else if (ex.sets <= 3) {
+                        intensity = 'Лёгкая';
+                        intensityClass = 'easy-intensity';
+                    }
+
                     html += `
-                        <div style="display:flex; justify-content:space-between; margin:5px 0">
-                            <span>${ex.name}</span>
-                            <span>${ex.sets}×${ex.reps} × ${ex.weight}кг</span>
-                        </div>
+                        <tr>
+                            <td class="exercise-name-cell">
+                                <span class="exercise-name">${ex.name}</span>
+                                <button class="edit-exercise-small" onclick="editExercise('${day}', ${idx})" title="Редактировать">✎</button>
+                            </td>
+                            <td class="intensity-cell ${intensityClass}">${intensity}</td>
+                            <td class="reps-cell">${ex.sets} × ${ex.reps}</td>
+                            <td class="weight-cell">
+                                <span class="weight-value">${ex.weight}</span>
+                                <button class="adjust-weight" onclick="adjustWeight('${day}', ${idx}, -2.5)">−</button>
+                                <button class="adjust-weight" onclick="adjustWeight('${day}', ${idx}, 2.5)">+</button>
+                            </td>
+                        </tr>
                     `;
                 });
+
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="day-actions">
+                        <button class="add-exercise-to-day" onclick="addExerciseToDay('${day}')">
+                            ➕ ДОБАВИТЬ УПРАЖНЕНИЕ
+                        </button>
+                    </div>
+                `;
             } else {
-                html += '<p style="color:#b87333">😴 Отдых</p>';
+                html += `<div class="rest-message">Полный отдых. Восстанавливай силы!</div>`;
             }
 
             html += '</div>';
@@ -389,13 +475,292 @@ window.displayWeeklyPlan = function(plan) {
     html += '</div>';
 
     html += `
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:20px">
-            <button onclick="usePlan()" style="padding:12px; background:#2c4a3b; color:#e3f0da; border:none; border-radius:8px; cursor:pointer">💾 ИСПОЛЬЗОВАТЬ</button>
-            <button onclick="showTrainer()" style="padding:12px; background:#2a241e; color:#e0d7c6; border:none; border-radius:8px; cursor:pointer">🔄 НОВЫЙ ПЛАН</button>
+        <div class="plan-footer">
+            <button onclick="usePlan()" class="save-plan-btn">💾 НАЧАТЬ ТРЕНИРОВКУ ПО ПЛАНУ</button>
+            <button onclick="showTrainer()" class="reset-plan-btn">🔄 НОВЫЙ ПЛАН</button>
         </div>
     `;
 
+    // Добавляем стили для таблицы
+    addTableStyles();
+
     document.getElementById('weeklyPlan').innerHTML = html;
+};
+
+// ========== ДОБАВЛЕНИЕ СТИЛЕЙ ДЛЯ ТАБЛИЦЫ ==========
+function addTableStyles() {
+    if (document.getElementById('table-styles')) return;
+
+    const style = document.createElement('style');
+    style.id = 'table-styles';
+    style.textContent = `
+        .plan-container {
+            padding: 5px;
+        }
+
+        .day-card {
+            background: linear-gradient(145deg, #1a1510, #0f0c08);
+            border: 2px solid #b87333;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+
+        .day-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #b87333;
+        }
+
+        .day-header h3 {
+            font-family: 'Cinzel', serif;
+            color: #e6c87c;
+            font-size: 18px;
+            margin: 0;
+        }
+
+        .workout-badge {
+            background: #b87333;
+            color: #0a0806;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            font-family: 'Cinzel', serif;
+        }
+
+        .rest-badge {
+            color: #b87333;
+            font-style: italic;
+            font-size: 14px;
+        }
+
+        .rest-message {
+            text-align: center;
+            color: #e0d7c6;
+            padding: 20px;
+            font-style: italic;
+        }
+
+        .workout-table-container {
+            overflow-x: auto;
+            margin: 10px 0;
+            border-radius: 10px;
+            background: #0a0806;
+        }
+
+        .workout-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .workout-table th {
+            background: #b87333;
+            color: #0a0806;
+            padding: 12px 8px;
+            font-family: 'Cinzel', serif;
+            font-size: 12px;
+            text-align: left;
+        }
+
+        .workout-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #2a2520;
+            color: #e0d7c6;
+        }
+
+        .workout-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .exercise-name-cell {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .exercise-name {
+            font-weight: bold;
+            color: #e6c87c;
+        }
+
+        .edit-exercise-small {
+            background: none;
+            border: 1px solid #b87333;
+            border-radius: 4px;
+            color: #b87333;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 2px 6px;
+            transition: all 0.3s;
+        }
+
+        .edit-exercise-small:hover {
+            background: #b87333;
+            color: #0a0806;
+        }
+
+        .intensity-cell {
+            font-weight: bold;
+            border-radius: 4px;
+            padding: 4px 8px;
+            text-align: center;
+        }
+
+        .easy-intensity {
+            color: #4caf50;
+        }
+
+        .medium-intensity {
+            color: #ff9800;
+        }
+
+        .hard-intensity {
+            color: #f44336;
+        }
+
+        .reps-cell {
+            font-family: monospace;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .weight-cell {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .weight-value {
+            min-width: 40px;
+            font-weight: bold;
+            color: #b87333;
+        }
+
+        .adjust-weight {
+            background: none;
+            border: 1px solid #b87333;
+            border-radius: 4px;
+            color: #b87333;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 2px 8px;
+            transition: all 0.3s;
+        }
+
+        .adjust-weight:hover {
+            background: #b87333;
+            color: #0a0806;
+        }
+
+        .day-actions {
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .add-exercise-to-day {
+            background: none;
+            border: 2px dashed #b87333;
+            border-radius: 8px;
+            color: #b87333;
+            padding: 10px 20px;
+            font-family: 'Cinzel', serif;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+        }
+
+        .add-exercise-to-day:hover {
+            background: #b87333;
+            color: #0a0806;
+            border-style: solid;
+        }
+
+        .plan-footer {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .save-plan-btn {
+            background: linear-gradient(145deg, #2c4a3b, #1a3528);
+            color: #e3f0da;
+            border: 2px solid #7f9a6b;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'Cinzel', serif;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .reset-plan-btn {
+            background: #2a241e;
+            color: #e0d7c6;
+            border: 2px solid #b87333;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'Cinzel', serif;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .save-plan-btn:hover, .reset-plan-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(184, 115, 51, 0.3);
+        }
+    `;
+
+    document.head.appendChild(style);
+}
+
+// ========== ФУНКЦИЯ ДЛЯ РЕГУЛИРОВКИ ВЕСА ==========
+window.adjustWeight = function(day, exerciseIdx, delta) {
+    const exercise = state.currentPlan[day].exercises[exerciseIdx];
+    exercise.weight = Math.max(0, Math.round((exercise.weight + delta) * 10) / 10);
+    displayWeeklyPlan(state.currentPlan);
+};
+
+// ========== ФУНКЦИЯ ДЛЯ ДОБАВЛЕНИЯ УПРАЖНЕНИЯ В ДЕНЬ ==========
+window.addExerciseToDay = function(day) {
+    // Показываем модальное окно для добавления упражнения
+    document.getElementById('exName').value = '';
+    document.getElementById('exSets').value = 3;
+    document.getElementById('exReps').value = 10;
+    document.getElementById('exWeight').value = 0;
+
+    modal.classList.add('show');
+
+    // Временно сохраняем день, в который добавляем
+    window.currentEditDay = day;
+    window.currentEditMode = 'add';
+};
+
+// ========== ФУНКЦИЯ ДЛЯ РЕДАКТИРОВАНИЯ УПРАЖНЕНИЯ ==========
+window.editExercise = function(day, exerciseIdx) {
+    const exercise = state.currentPlan[day].exercises[exerciseIdx];
+
+    document.getElementById('exName').value = exercise.name;
+    document.getElementById('exSets').value = exercise.sets;
+    document.getElementById('exReps').value = exercise.reps;
+    document.getElementById('exWeight').value = exercise.weight;
+
+    modal.classList.add('show');
+
+    window.currentEditDay = day;
+    window.currentEditIndex = exerciseIdx;
+    window.currentEditMode = 'edit';
 };
 
 // ========== ИСПОЛЬЗОВАТЬ ПЛАН ==========
