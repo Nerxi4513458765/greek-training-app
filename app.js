@@ -1,4 +1,4 @@
-// app.js - ПОЛНАЯ ВЕРСИЯ С РАБОЧИМ ТРЕНЕРОМ
+// app.js - ПОЛНАЯ ВЕРСИЯ С ОТЛАДКОЙ
 
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 const tg = window.Telegram.WebApp;
@@ -289,7 +289,8 @@ function showTrainer() {
         document.getElementById('weeklyPlan').innerHTML = '<p style="color:#e6c87c; text-align:center">⚡ Генерирую план...</p>';
 
         try {
-            // Отправляем запрос на сервер
+            console.log('📤 Отправляем запрос с focus:', state.currentFocus);
+
             const response = await fetch('https://greek-training-bot-production-2cc5.up.railway.app/get_plan', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -299,19 +300,27 @@ function showTrainer() {
                 })
             });
 
+            console.log('📥 Статус ответа:', response.status);
+
             const result = await response.json();
+            console.log('📦 Данные от сервера:', result);
 
             if (result.success) {
+                console.log('✅ План получен, структура:', Object.keys(result.plan));
+                // Проверим первый день плана
+                const firstDay = Object.keys(result.plan)[0];
+                console.log('Пример дня:', firstDay, result.plan[firstDay]);
+
                 displayWeeklyPlan(result.plan);
             } else {
                 throw new Error(result.error || 'Ошибка генерации плана');
             }
         } catch (error) {
-            console.error('Ошибка:', error);
+            console.error('❌ Ошибка:', error);
             document.getElementById('weeklyPlan').innerHTML = `
                 <div style="text-align:center; padding:20px; background:#1a1510; border-radius:10px">
-                    <p style="color:#f44336">❌ Ошибка генерации плана</p>
-                    <p style="color:#e0d7c6; margin-top:10px">Попробуй ещё раз или позже</p>
+                    <p style="color:#f44336">❌ Ошибка: ${error.message}</p>
+                    <p style="color:#e0d7c6; margin-top:10px">Попробуй ещё раз</p>
                 </div>
             `;
         }
@@ -421,6 +430,7 @@ showWelcome();
 
 // ========== ОТОБРАЖЕНИЕ ПЛАНА ==========
 window.displayWeeklyPlan = function(plan) {
+    console.log('📊 Отображаем план:', plan);
     state.currentPlan = plan;
 
     let html = '<div class="plan-container">';
