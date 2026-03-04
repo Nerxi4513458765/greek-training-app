@@ -1,4 +1,4 @@
-// app.js - МИНИМАЛИСТИЧНЫЙ ИНТЕРФЕЙС
+// app.js - ПОЛНЫЙ КОД С РАЗДЕЛОМ ТРЕНЕР
 
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 const tg = window.Telegram.WebApp;
@@ -8,6 +8,8 @@ tg.expand();
 // ========== СОСТОЯНИЕ ==========
 const state = {
     currentSection: 'welcome',
+    currentFocus: null,
+    currentPlan: null,
     currentWorkout: {
         name: 'Тренировка',
         exercises: [],
@@ -38,10 +40,8 @@ function saveToStorage() {
     localStorage.setItem(`workouts_${state.user.id}`, JSON.stringify(state.history));
 }
 
-// ========== УДАЛЕНИЕ ПО ДАТЕ ==========
+// ========== УДАЛЕНИЕ ==========
 window.deleteWorkout = function(workoutDate, workoutName) {
-    console.log('🗑️ Попытка удаления тренировки от', workoutDate);
-
     tg.showPopup({
         title: '⚠️ Удаление',
         message: `Точно удалить тренировку "${workoutName}"?`,
@@ -51,16 +51,12 @@ window.deleteWorkout = function(workoutDate, workoutName) {
         ]
     }, (buttonId) => {
         if (buttonId === 'delete') {
-            // Удаляем из локального хранилища
             state.history = state.history.filter(w => w.date !== workoutDate);
             saveToStorage();
-
-            // Отправляем команду боту с ДАТОЙ
             tg.sendData(JSON.stringify({
                 type: 'delete_workout_by_date',
                 date: workoutDate
             }));
-
             showHistory();
         }
     });
@@ -73,7 +69,7 @@ function showSection(section) {
 
     if (section === 'workout') showWorkoutCreator();
     else if (section === 'history') showHistory();
-    else if (section === 'oracle') showOracle();
+    else if (section === 'trainer') showTrainer();
     else if (section === 'today') showTodayTrial();
     else showWelcome();
 }
@@ -84,20 +80,197 @@ function showWelcome() {
     actionBar.style.display = 'none';
 }
 
-// ========== ТВОЙ ИНТЕРФЕЙС ==========
+// ========== ТРЕНЕР (НОВЫЙ РАЗДЕЛ) ==========
+function showTrainer() {
+    contentEl.innerHTML = `
+        <div class="trainer-container">
+            <h2 class="section-title">🏋️ ПЕРСОНАЛЬНЫЙ ТРЕНЕР</h2>
+
+            <div class="focus-section">
+                <h3 class="focus-title">Выбери фокус недели:</h3>
+                <div class="focus-grid">
+                    <button class="focus-btn" data-focus="грудь">💪 ГРУДЬ</button>
+                    <button class="focus-btn" data-focus="спина">🔱 СПИНА</button>
+                    <button class="focus-btn" data-focus="ноги">🦵 НОГИ</button>
+                    <button class="focus-btn" data-focus="плечи">🏔️ ПЛЕЧИ</button>
+                    <button class="focus-btn" data-focus="руки">💪 РУКИ</button>
+                    <button class="focus-btn" data-focus="все">⚖️ БАЛАНС</button>
+                </div>
+            </div>
+
+            <div id="weeklyPlan" class="weekly-plan">
+                <div class="plan-placeholder">
+                    <p>Выбери фокус и нажми "СГЕНЕРИРОВАТЬ ПЛАН"</p>
+                    <p>👇</p>
+                </div>
+            </div>
+
+            <button id="generatePlanBtn" class="trainer-btn">
+                🎯 СГЕНЕРИРОВАТЬ ПЛАН
+            </button>
+        </div>
+    `;
+
+    document.querySelectorAll('.focus-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.focus-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            state.currentFocus = this.dataset.focus;
+        });
+    });
+
+    document.getElementById('generatePlanBtn').addEventListener('click', () => {
+        if (!state.currentFocus) {
+            tg.showPopup({
+                title: '⚠️ Внимание',
+                message: 'Сначала выбери фокус недели!',
+                buttons: [{ type: 'ok' }]
+            });
+            return;
+        }
+
+        document.getElementById('weeklyPlan').innerHTML = `
+            <div class="loading">
+                <p>⚡ Генерирую план...</p>
+            </div>
+        `;
+
+        tg.sendData(JSON.stringify({
+            type: 'get_plan',
+            focus: state.currentFocus
+        }));
+    });
+
+    actionBar.style.display = 'none';
+}
+
+// ========== ОТОБРАЖЕНИЕ ПЛАНА ==========
+window.displayWeeklyPlan = function(plan) {
+    state.currentPlan = plan;
+
+    let html = '<div class="plan-container">';
+    const days = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
+
+    days.forEach(day => {
+        if (plan[day]) {
+            const dayPlan = plan[day];
+            html += `
+                <div class="day-card ${dayPlan.exercises.length === 0 ? 'rest-day' : ''}">
+                    <div class="day-header">
+                        <h3>${dayPlan.name || day}</h3>
+                        ${dayPlan.exercises.length > 0 ?
+                            '<button class="edit-day-btn" onclick="editDay(\'' + day + '\')">✎</button>' :
+                            '<span class="rest-badge">😴 ОТДЫХ</span>'}
+                    </div>
+            `;
+
+            if (dayPlan.exercises.length > 0) {
+                html += '<div class="day-exercises">';
+                dayPlan.exercises.forEach((ex, idx) => {
+                    html += `
+                        <div class="exercise-card">
+                            <span class="exercise-name">${ex.name}</span>
+                            <span class="exercise-details">${ex.sets}×${ex.reps}</span>
+                            <span class="exercise-weight">${ex.weight} кг</span>
+                            <button class="edit-exercise-btn" onclick="editExercise('${day}', ${idx})">✎</button>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+
+            html += '</div>';
+        }
+    });
+
+    html += '</div>';
+
+    html += `
+        <div class="plan-actions">
+            <button onclick="usePlan()" class="save-plan-btn">💾 ИСПОЛЬЗОВАТЬ ЭТОТ ПЛАН</button>
+            <button onclick="resetPlan()" class="reset-plan-btn">🔄 НОВЫЙ ПЛАН</button>
+        </div>
+    `;
+
+    document.getElementById('weeklyPlan').innerHTML = html;
+};
+
+// ========== РЕДАКТИРОВАНИЕ УПРАЖНЕНИЯ ==========
+window.editExercise = function(day, exerciseIdx) {
+    const exercise = state.currentPlan[day].exercises[exerciseIdx];
+
+    const editHtml = `
+        <div class="edit-modal">
+            <h3>✎ Редактировать</h3>
+            <input type="text" id="editName" value="${exercise.name}" placeholder="Название">
+            <input type="number" id="editSets" value="${exercise.sets}" placeholder="Подходы">
+            <input type="number" id="editReps" value="${exercise.reps}" placeholder="Повторения">
+            <input type="number" id="editWeight" value="${exercise.weight}" placeholder="Вес">
+            <div class="edit-buttons">
+                <button onclick="saveExercise('${day}', ${exerciseIdx})">💾 Сохранить</button>
+                <button onclick="closeModal()">❌ Отмена</button>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('exerciseModal').innerHTML = editHtml;
+    document.getElementById('exerciseModal').classList.add('show');
+};
+
+window.saveExercise = function(day, exerciseIdx) {
+    state.currentPlan[day].exercises[exerciseIdx] = {
+        name: document.getElementById('editName').value,
+        sets: parseInt(document.getElementById('editSets').value),
+        reps: parseInt(document.getElementById('editReps').value),
+        weight: parseInt(document.getElementById('editWeight').value)
+    };
+
+    displayWeeklyPlan(state.currentPlan);
+    closeModal();
+};
+
+window.closeModal = function() {
+    document.getElementById('exerciseModal').classList.remove('show');
+};
+
+// ========== ИСПОЛЬЗОВАТЬ ПЛАН ==========
+window.usePlan = function() {
+    state.currentWorkout.exercises = [];
+
+    // Собираем все упражнения из плана
+    const days = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
+    days.forEach(day => {
+        if (state.currentPlan[day] && state.currentPlan[day].exercises) {
+            state.currentWorkout.exercises.push(...state.currentPlan[day].exercises);
+        }
+    });
+
+    state.currentWorkout.name = `План: ${state.currentFocus || 'баланс'}`;
+    showSection('workout');
+};
+
+window.resetPlan = function() {
+    document.querySelectorAll('.focus-btn').forEach(b => b.classList.remove('active'));
+    state.currentFocus = null;
+    state.currentPlan = null;
+    showTrainer();
+};
+
+// ========== СОЗДАТЕЛЬ ТРЕНИРОВОК ==========
 function showWorkoutCreator() {
     let exercisesHtml = '';
 
     if (state.currentWorkout.exercises.length === 0) {
-        exercisesHtml = '<p style="color:#b87333; padding:20px; text-align:center">❗ Ещё нет упражнений. Начни свой подвиг!</p>';
+        exercisesHtml = '<p class="empty-message">❗ Ещё нет упражнений. Начни свой подвиг!</p>';
     } else {
-        exercisesHtml = '<div style="margin-bottom:20px">';
+        exercisesHtml = '<div class="exercises-list">';
         state.currentWorkout.exercises.forEach((ex, index) => {
             exercisesHtml += `
-                <div style="background:#1a1510; border-left:4px solid #b87333; border-radius:8px; padding:12px; margin-bottom:8px; display:flex; justify-content:space-between">
-                    <span style="color:#e6c87c">🏹 ${ex.name}</span>
-                    <span>${ex.sets}×${ex.reps} × ${ex.weight}кг</span>
-                    <button onclick="removeExercise(${index})" style="background:none; border:none; color:#8b1e1e; font-size:20px; cursor:pointer">✕</button>
+                <div class="exercise-item">
+                    <span class="exercise-name">🏹 ${ex.name}</span>
+                    <span class="exercise-details">${ex.sets}×${ex.reps}</span>
+                    <span class="exercise-weight">${ex.weight} кг</span>
+                    <button class="remove-exercise" onclick="removeExercise(${index})">✕</button>
                 </div>
             `;
         });
@@ -105,19 +278,16 @@ function showWorkoutCreator() {
     }
 
     contentEl.innerHTML = `
-        <h2 style="font-family: 'Cinzel', serif; color: #e6c87c; margin-bottom: 20px;">🏛️ СОЗДАНИЕ ПОДВИГА</h2>
+        <h2 class="section-title">🏛️ СОЗДАНИЕ ПОДВИГА</h2>
 
-        <div style="margin-bottom: 24px;">
-            <label style="display: block; color: #e6c87c; margin-bottom: 8px;">📜 НАЗВАНИЕ ТРЕНИРОВКИ</label>
-            <input type="text" id="workoutName" value="${state.currentWorkout.name}"
-                   style="width:100%; padding:12px; background:#1a1510; border:2px solid #b87333; border-radius:8px; color:#e0d7c6; font-size:18px;">
+        <div class="workout-name-section">
+            <label class="workout-label">📜 НАЗВАНИЕ ТРЕНИРОВКИ</label>
+            <input type="text" id="workoutName" class="workout-name-input" value="${state.currentWorkout.name}">
         </div>
 
         ${exercisesHtml}
 
-        <button id="addExerciseBtn" style="width:100%; padding:14px; background:#b87333; border:none; border-radius:8px; color:#0a0806; font-family:'Cinzel'; font-size:16px; font-weight:700; cursor:pointer; margin-top:16px;">
-            + ДОБАВИТЬ УПРАЖНЕНИЕ
-        </button>
+        <button id="addExerciseBtn" class="add-btn">+ ДОБАВИТЬ УПРАЖНЕНИЕ</button>
     `;
 
     document.getElementById('workoutName').oninput = (e) => {
@@ -140,10 +310,10 @@ window.removeExercise = function(index) {
 function showHistory() {
     if (state.history.length === 0) {
         contentEl.innerHTML = `
-            <div style="text-align:center; padding:40px">
-                <h2 style="color:#e6c87c">📜 ХРОНИКИ ПУСТЫ</h2>
-                <p style="margin:20px">Твои подвиги ещё не записаны в свитки...</p>
-                <button onclick="showSection('workout')" style="padding:15px 30px; background:#b87333; border:none; border-radius:10px; color:#0a0806; font-family:'Cinzel'; cursor:pointer">
+            <div class="empty-history">
+                <h2 class="empty-title">📜 ХРОНИКИ ПУСТЫ</h2>
+                <p class="empty-text">Твои подвиги ещё не записаны в свитки...</p>
+                <button onclick="showSection('workout')" class="empty-btn">
                     🏛️ СОЗДАТЬ ПЕРВЫЙ ПОДВИГ
                 </button>
             </div>
@@ -152,25 +322,28 @@ function showHistory() {
         return;
     }
 
-    let html = '<div style="max-height:400px; overflow-y:auto">';
+    let html = '<div class="history-scroll">';
 
     [...state.history].reverse().forEach(w => {
         const date = new Date(w.date).toLocaleDateString('ru-RU');
         const time = new Date(w.date).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'});
 
         html += `
-            <div style="background:#1a1510; border-left:4px solid #b87333; border-radius:8px; padding:15px; margin-bottom:15px">
-                <div style="display:flex; justify-content:space-between; margin-bottom:10px">
-                    <span style="color:#e6c87c">🏛️ ${w.name}</span>
-                    <span style="color:#b87333">${date} ${time}</span>
+            <div class="history-item">
+                <div class="history-header">
+                    <span class="history-name">🏛️ ${w.name}</span>
+                    <span class="history-time">${date} ${time}</span>
                 </div>
-                <div style="margin:10px 0; font-size:14px">
-                    ${w.exercises.slice(0,3).map(ex => `<div>• ${ex.name} (${ex.sets}×${ex.reps} × ${ex.weight}кг)</div>`).join('')}
-                    ${w.exercises.length > 3 ? `<div style="color:#b87333">... и ещё ${w.exercises.length-3}</div>` : ''}
+                <div class="history-exercises">
+                    ${w.exercises.slice(0,3).map(ex =>
+                        `<div class="history-ex-item">• ${ex.name} (${ex.sets}×${ex.reps} × ${ex.weight}кг)</div>`
+                    ).join('')}
+                    ${w.exercises.length > 3 ?
+                        `<div class="history-ex-more">... и ещё ${w.exercises.length-3}</div>` : ''}
                 </div>
-                <div style="display:flex; justify-content:space-between; margin-top:10px">
-                    <span style="color:#b87333">${w.exercises.length} упражнений</span>
-                    <button onclick="deleteWorkout('${w.date}', '${w.name}')" style="background:none; border:none; color:#8b1e1e; font-size:20px; cursor:pointer">🗑️</button>
+                <div class="history-footer">
+                    <span class="history-count">${w.exercises.length} упражнений</span>
+                    <button class="history-delete" onclick="deleteWorkout('${w.date}', '${w.name}')">🗑️</button>
                 </div>
             </div>
         `;
@@ -182,33 +355,13 @@ function showHistory() {
     const weight = Math.round(state.history.reduce((a, w) => a + w.exercises.reduce((s, ex) => s + ex.weight * ex.sets * ex.reps, 0), 0));
 
     contentEl.innerHTML = `
-        <h2 style="font-family:'Cinzel'; color:#e6c87c; margin-bottom:20px">📜 ХРОНИКИ ГЕРОЯ</h2>
-        <div style="display:flex; justify-content:space-around; background:#1a1510; border:1px solid #b87333; border-radius:10px; padding:15px; margin-bottom:20px">
-            <div><span style="display:block; font-size:24px; color:#e6c87c">${state.history.length}</span><span>тренировок</span></div>
-            <div><span style="display:block; font-size:24px; color:#e6c87c">${total}</span><span>упражнений</span></div>
-            <div><span style="display:block; font-size:24px; color:#e6c87c">${weight}</span><span>кг</span></div>
+        <h2 class="section-title">📜 ХРОНИКИ ГЕРОЯ</h2>
+        <div class="stats-bar">
+            <div><span class="stat-value">${state.history.length}</span><span class="stat-label">тренировок</span></div>
+            <div><span class="stat-value">${total}</span><span class="stat-label">упражнений</span></div>
+            <div><span class="stat-value">${weight}</span><span class="stat-label">кг</span></div>
         </div>
         ${html}
-    `;
-    actionBar.style.display = 'none';
-}
-
-// ========== ОРАКУЛ ==========
-function showOracle() {
-    const prophecies = [
-        "«Река Стикс течёт через каждого, кто не боится пота»",
-        "«Сила приходит от духа, закалённого испытаниями»",
-        "«Геракл начинал с одного камня»"
-    ];
-
-    contentEl.innerHTML = `
-        <div style="text-align:center; padding:20px">
-            <h2 style="color:#e6c87c; margin-bottom:20px">🔮 ИЗРЕЧЕНИЕ ОРАКУЛА</h2>
-            <div style="font-size:60px; margin:20px">🏺</div>
-            <p style="font-size:24px; font-style:italic; color:#e6c87c; margin:30px">"${prophecies[Math.floor(Math.random() * prophecies.length)]}"</p>
-            <p style="color:#b87333">— Пифия</p>
-            <button onclick="showOracle()" style="margin-top:30px; padding:15px 30px; background:#b87333; border:none; border-radius:10px; color:#0a0806; font-family:'Cinzel'; cursor:pointer">🎲 НОВОЕ ПРОРОЧЕСТВО</button>
-        </div>
     `;
     actionBar.style.display = 'none';
 }
@@ -222,12 +375,12 @@ function showTodayTrial() {
     const t = trials[Math.floor(Math.random() * trials.length)];
 
     contentEl.innerHTML = `
-        <div style="text-align:center; padding:20px">
-            <h2 style="color:#e6c87c">⚡ ПОДВИГ ДНЯ</h2>
-            <div style="font-size:60px; margin:20px">🏛️</div>
-            <h3 style="color:#e6c87c; font-size:28px">${t.name}</h3>
-            <p style="margin:20px">${t.desc}</p>
-            <button onclick="showSection('workout')" style="padding:15px 30px; background:#b87333; border:none; border-radius:10px; color:#0a0806; font-family:'Cinzel'; cursor:pointer">🏛️ ПРИНЯТЬ</button>
+        <div class="trial-container">
+            <h2 class="trial-title">⚡ ПОДВИГ ДНЯ</h2>
+            <div class="trial-icon">🏛️</div>
+            <h3 class="trial-name">${t.name}</h3>
+            <p class="trial-description">${t.desc}</p>
+            <button onclick="showSection('workout')" class="trial-btn">🏛️ ПРИНЯТЬ</button>
         </div>
     `;
     actionBar.style.display = 'none';
@@ -292,3 +445,7 @@ menuCards.forEach(card => {
 // ========== СТАРТ ==========
 loadFromStorage();
 showWelcome();
+
+// Делаем функции глобальными
+window.showSection = showSection;
+window.displayWeeklyPlan = displayWeeklyPlan;
