@@ -1,4 +1,4 @@
-// app.js - ПОЛНАЯ ВЕРСИЯ С АДАПТАЦИЕЙ ДЛЯ МОБИЛЬНЫХ
+// app.js - ПОЛНАЯ ВЕРСИЯ С ОТПРАВКОЙ ПЛАНА В TELEGRAM
 
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 const tg = window.Telegram.WebApp;
@@ -189,7 +189,7 @@ function showHistory() {
     actionBar.style.display = 'none';
 }
 
-// ========== ТРЕНЕР ==========
+// ========== ТРЕНЕР (НОВАЯ ВЕРСИЯ) ==========
 function showTrainer() {
     contentEl.innerHTML = `
         <div style="text-align:center; padding:20px">
@@ -213,15 +213,21 @@ function showTrainer() {
                 </div>
             </div>
 
-            <div id="weeklyPlan" style="margin:20px 0; min-height:100px">
+            <div id="planStatus" style="margin:20px 0; min-height:60px">
                 <p style="color:#b87333; text-align:center">Выбери фокус и нажми кнопку</p>
             </div>
 
             <button id="generatePlanBtn" class="primary-btn">🎯 СГЕНЕРИРОВАТЬ ПЛАН</button>
+
+            <div id="editSection" style="margin-top:30px; display:none">
+                <h3 style="color:#e6c87c; margin-bottom:15px; font-size:18px">✏️ РЕДАКТИРОВАНИЕ</h3>
+                <button id="loadPlanBtn" class="secondary-btn" style="margin-bottom:10px">📥 ЗАГРУЗИТЬ ПЛАН</button>
+                <button id="editPlanBtn" class="secondary-btn">📝 ОТКРЫТЬ РЕДАКТОР</button>
+            </div>
         </div>
     `;
 
-    // Стили для кнопок фокуса
+    // Стили для кнопок
     const style = document.createElement('style');
     style.textContent = `
         .focus-btn {
@@ -258,10 +264,33 @@ function showTrainer() {
             font-weight: 700;
             cursor: pointer;
             margin-top: 10px;
+            transition: all 0.3s;
+        }
+        .primary-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(184,115,51,0.4);
+        }
+        .secondary-btn {
+            width: 100%;
+            padding: 12px;
+            background: #2a241e;
+            border: 2px solid #b87333;
+            border-radius: 8px;
+            color: #e0d7c6;
+            font-family: 'Cinzel', serif;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .secondary-btn:hover {
+            background: #3a342e;
+            border-color: #e6c87c;
+            transform: translateY(-2px);
         }
     `;
     document.head.appendChild(style);
 
+    // Обработчики кнопок фокуса
     document.querySelectorAll('.focus-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             document.querySelectorAll('.focus-btn').forEach(b => {
@@ -276,6 +305,7 @@ function showTrainer() {
         });
     });
 
+    // Генерация плана
     document.getElementById('generatePlanBtn').addEventListener('click', async () => {
         if (!state.currentFocus) {
             tg.showPopup({
@@ -286,45 +316,95 @@ function showTrainer() {
             return;
         }
 
-        document.getElementById('weeklyPlan').innerHTML = '<p style="color:#e6c87c; text-align:center">⚡ Генерирую план...</p>';
+        document.getElementById('planStatus').innerHTML = '<p style="color:#e6c87c; text-align:center">⚡ Генерирую план...</p>';
 
-        // Проверяем user_id
         let userId = state.user.id;
-        if (userId === 0) {
-            console.log('⚠️ Тестовый режим: используем заглушку user_id = 12345');
-            userId = 12345;
-        }
-
-        const apiUrl = 'https://greek-training-bot-production-2cc5.up.railway.app/get_plan';
-        const requestData = {
-            user_id: userId,
-            focus: state.currentFocus
-        };
+        if (userId === 0) userId = 12345;
 
         try {
-            const response = await fetch(apiUrl, {
+            const response = await fetch('https://greek-training-bot-production-2cc5.up.railway.app/get_plan', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(requestData)
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: userId,
+                    focus: state.currentFocus
+                })
             });
 
             const result = await response.json();
 
             if (result.success) {
-                displayWeeklyPlan(result.plan);
+                document.getElementById('planStatus').innerHTML = `
+                    <div style="text-align:center; padding:15px; background:#1a1510; border-radius:10px; border-left:4px solid #4caf50">
+                        <p style="color:#4caf50; font-weight:bold">✅ План отправлен!</p>
+                        <p style="color:#e0d7c6; font-size:12px; margin-top:5px">Проверь сообщение от бота в Telegram</p>
+                    </div>
+                `;
+                document.getElementById('editSection').style.display = 'block';
             } else {
-                throw new Error(result.error || 'Ошибка генерации плана');
+                throw new Error(result.error || 'Ошибка генерации');
             }
         } catch (error) {
-            document.getElementById('weeklyPlan').innerHTML = `
-                <div style="text-align:center; padding:20px; background:#1a1510; border-radius:10px">
+            document.getElementById('planStatus').innerHTML = `
+                <div style="text-align:center; padding:15px; background:#1a1510; border-radius:10px; border-left:4px solid #f44336">
                     <p style="color:#f44336">❌ Ошибка: ${error.message}</p>
-                    <p style="color:#e0d7c6; margin-top:10px">Попробуй ещё раз</p>
                 </div>
             `;
         }
+    });
+
+    // Загрузка плана
+    document.getElementById('loadPlanBtn').addEventListener('click', async () => {
+        document.getElementById('planStatus').innerHTML = '<p style="color:#e6c87c; text-align:center">⚡ Загружаю план...</p>';
+
+        try {
+            const response = await fetch('https://greek-training-bot-production-2cc5.up.railway.app/get_user_plan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: state.user.id })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                state.currentPlan = result.plan;
+                state.currentFocus = result.focus;
+
+                document.getElementById('planStatus').innerHTML = `
+                    <div style="text-align:center; padding:15px; background:#1a1510; border-radius:10px; border-left:4px solid #4caf50">
+                        <p style="color:#4caf50; font-weight:bold">✅ План загружен!</p>
+                        <p style="color:#e0d7c6; margin-top:5px">Фокус: ${result.focus}</p>
+                    </div>
+                `;
+            } else {
+                throw new Error(result.error || 'План не найден');
+            }
+        } catch (error) {
+            document.getElementById('planStatus').innerHTML = `
+                <div style="text-align:center; padding:15px; background:#1a1510; border-radius:10px; border-left:4px solid #f44336">
+                    <p style="color:#f44336">❌ Ошибка: ${error.message}</p>
+                </div>
+            `;
+        }
+    });
+
+    // Редактирование плана
+    document.getElementById('editPlanBtn').addEventListener('click', () => {
+        if (!state.currentPlan) {
+            tg.showPopup({
+                title: '⚠️ Нет плана',
+                message: 'Сначала загрузи или сгенерируй план',
+                buttons: [{ type: 'ok' }]
+            });
+            return;
+        }
+
+        // Здесь будет открываться редактор (доделаем позже)
+        tg.showPopup({
+            title: '✏️ Редактор',
+            message: 'Редактор планов появится в следующем обновлении',
+            buttons: [{ type: 'ok' }]
+        });
     });
 
     actionBar.style.display = 'none';
@@ -363,40 +443,21 @@ modalForm.onsubmit = (e) => {
 
     if (!ex.name) return;
 
-    if (window.currentEditMode === 'edit' && window.currentEditDay !== undefined && window.currentEditIndex !== undefined) {
-        state.currentPlan[window.currentEditDay].exercises[window.currentEditIndex] = ex;
-        displayWeeklyPlan(state.currentPlan);
-    } else if (window.currentEditMode === 'add' && window.currentEditDay) {
-        state.currentPlan[window.currentEditDay].exercises.push(ex);
-        displayWeeklyPlan(state.currentPlan);
-    } else {
-        state.currentWorkout.exercises.push(ex);
-        showWorkoutCreator();
-    }
-
+    state.currentWorkout.exercises.push(ex);
     modal.classList.remove('show');
     modalForm.reset();
-
-    window.currentEditDay = null;
-    window.currentEditIndex = null;
-    window.currentEditMode = null;
+    showWorkoutCreator();
 };
 
 cancelModalBtn.onclick = () => {
     modal.classList.remove('show');
     modalForm.reset();
-    window.currentEditDay = null;
-    window.currentEditIndex = null;
-    window.currentEditMode = null;
 };
 
 modal.onclick = (e) => {
     if (e.target === modal) {
         modal.classList.remove('show');
         modalForm.reset();
-        window.currentEditDay = null;
-        window.currentEditIndex = null;
-        window.currentEditMode = null;
     }
 };
 
@@ -428,464 +489,3 @@ menuCards.forEach(card => {
 // ========== СТАРТ ==========
 loadFromStorage();
 showWelcome();
-
-// ========== ОТОБРАЖЕНИЕ ПЛАНА ==========
-window.displayWeeklyPlan = function(plan) {
-    state.currentPlan = plan;
-
-    const isMobile = window.innerWidth <= 480;
-
-    let html = '<div class="plan-container">';
-    const days = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
-
-    days.forEach(day => {
-        if (plan[day]) {
-            const dayIcons = {
-                'понедельник': '🌙', 'вторник': '🔥', 'среда': '💧',
-                'четверг': '🌪️', 'пятница': '⚡', 'суббота': '✨', 'воскресенье': '☀️'
-            };
-
-            html += `
-                <div class="day-card ${plan[day].exercises.length === 0 ? 'rest-day' : ''}">
-                    <div class="day-header">
-                        <h3>${dayIcons[day] || '📅'} ${plan[day].name || day}</h3>
-                        ${plan[day].exercises.length > 0 ?
-                            '<span class="workout-badge">🏋️ ТРЕНИРОВКА</span>' :
-                            '<span class="rest-badge">😴 ДЕНЬ ОТДЫХА</span>'}
-                    </div>
-            `;
-
-            if (plan[day].exercises.length > 0) {
-                if (isMobile) {
-                    // Мобильная версия - карточки
-                    html += `<div class="mobile-exercises">`;
-                    plan[day].exercises.forEach((ex, idx) => {
-                        let intensity = ex.sets >= 5 ? 'Тяжёлая' : (ex.sets <= 3 ? 'Лёгкая' : 'Средняя');
-                        let intensityClass = ex.sets >= 5 ? 'hard' : (ex.sets <= 3 ? 'easy' : 'medium');
-
-                        html += `
-                            <div class="mobile-exercise-card">
-                                <div class="mobile-exercise-header">
-                                    <span class="mobile-exercise-name">${ex.name}</span>
-                                    <button class="edit-exercise-small" onclick="editExercise('${day}', ${idx})">✎</button>
-                                </div>
-                                <div class="mobile-exercise-details">
-                                    <span class="mobile-intensity ${intensityClass}">${intensity}</span>
-                                    <span class="mobile-reps">${ex.sets}×${ex.reps}</span>
-                                    <span class="mobile-weight">
-                                        <button class="adjust-weight-small" onclick="adjustWeight('${day}', ${idx}, -2.5)">−</button>
-                                        ${ex.weight} кг
-                                        <button class="adjust-weight-small" onclick="adjustWeight('${day}', ${idx}, 2.5)">+</button>
-                                    </span>
-                                </div>
-                            </div>
-                        `;
-                    });
-                    html += `</div>`;
-                } else {
-                    // Десктопная версия - таблица
-                    html += `
-                        <div class="workout-table-container">
-                            <table class="workout-table">
-                                <thead>
-                                    <tr>
-                                        <th>🏋️ УПРАЖНЕНИЕ</th>
-                                        <th>⚡ ИНТЕНСИВНОСТЬ</th>
-                                        <th>🔄 ПОВТОРЕНИЯ</th>
-                                        <th>⚖️ ВЕС (КГ)</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                    `;
-
-                    plan[day].exercises.forEach((ex, idx) => {
-                        let intensity = 'Средняя';
-                        let intensityClass = 'medium-intensity';
-
-                        if (ex.sets >= 5) {
-                            intensity = 'Тяжёлая';
-                            intensityClass = 'hard-intensity';
-                        } else if (ex.sets <= 3) {
-                            intensity = 'Лёгкая';
-                            intensityClass = 'easy-intensity';
-                        }
-
-                        html += `
-                            <tr>
-                                <td class="exercise-name-cell">
-                                    <span class="exercise-name">${ex.name}</span>
-                                    <button class="edit-exercise-small" onclick="editExercise('${day}', ${idx})">✎</button>
-                                </td>
-                                <td class="intensity-cell ${intensityClass}">${intensity}</td>
-                                <td class="reps-cell">${ex.sets} × ${ex.reps}</td>
-                                <td class="weight-cell">
-                                    <span class="weight-value">${ex.weight}</span>
-                                    <button class="adjust-weight" onclick="adjustWeight('${day}', ${idx}, -2.5)">−</button>
-                                    <button class="adjust-weight" onclick="adjustWeight('${day}', ${idx}, 2.5)">+</button>
-                                </td>
-                            </tr>
-                        `;
-                    });
-
-                    html += `
-                                </tbody>
-                            </table>
-                        </div>
-                    `;
-                }
-
-                html += `
-                    <div class="day-actions">
-                        <button class="add-exercise-to-day" onclick="addExerciseToDay('${day}')">
-                            ➕ ДОБАВИТЬ УПРАЖНЕНИЕ
-                        </button>
-                    </div>
-                `;
-            } else {
-                html += `<div class="rest-message">Полный отдых. Восстанавливай силы!</div>`;
-            }
-
-            html += '</div>';
-        }
-    });
-
-    html += '</div>';
-
-    html += `
-        <div class="plan-footer">
-            <button onclick="usePlan()" class="save-plan-btn">💾 НАЧАТЬ ТРЕНИРОВКУ ПО ПЛАНУ</button>
-            <button onclick="showTrainer()" class="reset-plan-btn">🔄 НОВЫЙ ПЛАН</button>
-        </div>
-    `;
-
-    addTableStyles();
-    document.getElementById('weeklyPlan').innerHTML = html;
-};
-
-// ========== СТИЛИ ДЛЯ ТАБЛИЦЫ И КАРТОЧЕК ==========
-function addTableStyles() {
-    if (document.getElementById('table-styles')) return;
-
-    const style = document.createElement('style');
-    style.id = 'table-styles';
-    style.textContent = `
-        .plan-container { padding: 5px; }
-
-        .day-card {
-            background: linear-gradient(145deg, #1a1510, #0f0c08);
-            border: 2px solid #b87333;
-            border-radius: 15px;
-            padding: 12px;
-            margin-bottom: 20px;
-        }
-
-        .day-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #b87333;
-        }
-
-        .day-header h3 {
-            font-family: 'Cinzel', serif;
-            color: #e6c87c;
-            font-size: 16px;
-            margin: 0;
-        }
-
-        .workout-badge {
-            background: #b87333;
-            color: #0a0806;
-            padding: 4px 8px;
-            border-radius: 20px;
-            font-size: 11px;
-            white-space: nowrap;
-        }
-
-        .rest-badge {
-            color: #b87333;
-            font-style: italic;
-            font-size: 12px;
-        }
-
-        .workout-table-container {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            margin: 10px -5px;
-            padding: 0 5px;
-            border-radius: 8px;
-            background: #0a0806;
-        }
-
-        .workout-table {
-            min-width: 500px;
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-        }
-
-        .workout-table th {
-            background: #b87333;
-            color: #0a0806;
-            padding: 10px 6px;
-            font-family: 'Cinzel', serif;
-            font-size: 11px;
-            text-align: left;
-            white-space: nowrap;
-        }
-
-        .workout-table td {
-            padding: 8px 6px;
-            border-bottom: 1px solid #2a2520;
-            color: #e0d7c6;
-        }
-
-        .exercise-name-cell {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            min-width: 120px;
-        }
-
-        .exercise-name {
-            color: #e6c87c;
-            font-weight: bold;
-            font-size: 12px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 100px;
-        }
-
-        .edit-exercise-small {
-            background: none;
-            border: 1px solid #b87333;
-            border-radius: 4px;
-            color: #b87333;
-            cursor: pointer;
-            font-size: 11px;
-            padding: 2px 5px;
-            white-space: nowrap;
-        }
-
-        .intensity-cell {
-            font-weight: bold;
-            font-size: 11px;
-            white-space: nowrap;
-            min-width: 70px;
-        }
-
-        .easy-intensity { color: #4caf50; }
-        .medium-intensity { color: #ff9800; }
-        .hard-intensity { color: #f44336; }
-
-        .reps-cell {
-            font-family: monospace;
-            font-size: 12px;
-            font-weight: bold;
-            white-space: nowrap;
-            min-width: 60px;
-        }
-
-        .weight-cell {
-            display: flex;
-            align-items: center;
-            gap: 3px;
-            min-width: 80px;
-        }
-
-        .weight-value {
-            min-width: 35px;
-            color: #b87333;
-            font-weight: bold;
-            font-size: 12px;
-            text-align: center;
-        }
-
-        .adjust-weight {
-            background: none;
-            border: 1px solid #b87333;
-            border-radius: 4px;
-            color: #b87333;
-            cursor: pointer;
-            padding: 2px 6px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-
-        /* Мобильные карточки */
-        .mobile-exercises {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin: 10px 0;
-        }
-
-        .mobile-exercise-card {
-            background: #0a0806;
-            border-left: 3px solid #b87333;
-            border-radius: 8px;
-            padding: 10px;
-        }
-
-        .mobile-exercise-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 6px;
-        }
-
-        .mobile-exercise-name {
-            color: #e6c87c;
-            font-weight: bold;
-            font-size: 14px;
-        }
-
-        .mobile-exercise-details {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 13px;
-            flex-wrap: wrap;
-            gap: 5px;
-        }
-
-        .mobile-intensity {
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: bold;
-        }
-
-        .mobile-intensity.easy { background: #1a3a1a; color: #4caf50; }
-        .mobile-intensity.medium { background: #3a2a1a; color: #ff9800; }
-        .mobile-intensity.hard { background: #3a1a1a; color: #f44336; }
-
-        .mobile-reps {
-            font-family: monospace;
-            font-weight: bold;
-        }
-
-        .mobile-weight {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .adjust-weight-small {
-            background: none;
-            border: 1px solid #b87333;
-            border-radius: 4px;
-            color: #b87333;
-            cursor: pointer;
-            padding: 2px 6px;
-            font-size: 12px;
-        }
-
-        .day-actions {
-            margin-top: 12px;
-        }
-
-        .add-exercise-to-day {
-            background: none;
-            border: 2px dashed #b87333;
-            border-radius: 8px;
-            color: #b87333;
-            padding: 8px;
-            width: 100%;
-            cursor: pointer;
-            font-family: 'Cinzel', serif;
-            font-size: 13px;
-            transition: all 0.3s;
-        }
-
-        .add-exercise-to-day:hover {
-            background: #b87333;
-            color: #0a0806;
-            border-style: solid;
-        }
-
-        .plan-footer {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            margin-top: 15px;
-        }
-
-        .save-plan-btn, .reset-plan-btn {
-            padding: 10px;
-            border-radius: 8px;
-            font-family: 'Cinzel', serif;
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-align: center;
-        }
-
-        .save-plan-btn {
-            background: #2c4a3b;
-            color: #e3f0da;
-            border: 2px solid #7f9a6b;
-        }
-
-        .reset-plan-btn {
-            background: #2a241e;
-            color: #e0d7c6;
-            border: 2px solid #b87333;
-        }
-
-        .rest-message {
-            text-align: center;
-            color: #e0d7c6;
-            padding: 20px;
-            font-style: italic;
-        }
-    `;
-
-    document.head.appendChild(style);
-}
-
-// ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
-window.adjustWeight = function(day, exerciseIdx, delta) {
-    const exercise = state.currentPlan[day].exercises[exerciseIdx];
-    exercise.weight = Math.max(0, Math.round((exercise.weight + delta) * 10) / 10);
-    displayWeeklyPlan(state.currentPlan);
-};
-
-window.addExerciseToDay = function(day) {
-    document.getElementById('exName').value = '';
-    document.getElementById('exSets').value = 3;
-    document.getElementById('exReps').value = 10;
-    document.getElementById('exWeight').value = 0;
-    modal.classList.add('show');
-    window.currentEditDay = day;
-    window.currentEditMode = 'add';
-};
-
-window.editExercise = function(day, exerciseIdx) {
-    const exercise = state.currentPlan[day].exercises[exerciseIdx];
-    document.getElementById('exName').value = exercise.name;
-    document.getElementById('exSets').value = exercise.sets;
-    document.getElementById('exReps').value = exercise.reps;
-    document.getElementById('exWeight').value = exercise.weight;
-    modal.classList.add('show');
-    window.currentEditDay = day;
-    window.currentEditIndex = exerciseIdx;
-    window.currentEditMode = 'edit';
-};
-
-window.usePlan = function() {
-    state.currentWorkout.exercises = [];
-    const days = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
-
-    days.forEach(day => {
-        if (state.currentPlan[day]?.exercises) {
-            state.currentWorkout.exercises.push(...state.currentPlan[day].exercises);
-        }
-    });
-
-    state.currentWorkout.name = `План: ${state.currentFocus || 'баланс'}`;
-    showSection('workout');
-};
