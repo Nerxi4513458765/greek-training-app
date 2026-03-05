@@ -1,4 +1,4 @@
-// app.js - ПОЛНАЯ ВЕРСИЯ С ИСПРАВЛЕНИЕМ USER_ID
+// app.js - ПОЛНАЯ ВЕРСИЯ С АДАПТАЦИЕЙ ДЛЯ МОБИЛЬНЫХ
 
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 const tg = window.Telegram.WebApp;
@@ -288,11 +288,7 @@ function showTrainer() {
 
         document.getElementById('weeklyPlan').innerHTML = '<p style="color:#e6c87c; text-align:center">⚡ Генерирую план...</p>';
 
-        // ПРОВЕРЯЕМ USER_ID
-        console.log('👤 Текущий user:', state.user);
-        console.log('👤 user.id:', state.user.id);
-
-        // ЕСЛИ USER_ID = 0 (тест в браузере), ИСПОЛЬЗУЕМ ЗАГЛУШКУ
+        // Проверяем user_id
         let userId = state.user.id;
         if (userId === 0) {
             console.log('⚠️ Тестовый режим: используем заглушку user_id = 12345');
@@ -305,9 +301,6 @@ function showTrainer() {
             focus: state.currentFocus
         };
 
-        console.log('📤 Отправка запроса на:', apiUrl);
-        console.log('📤 Данные запроса:', requestData);
-
         try {
             const response = await fetch(apiUrl, {
                 method: 'POST',
@@ -317,16 +310,7 @@ function showTrainer() {
                 body: JSON.stringify(requestData)
             });
 
-            console.log('📥 Статус ответа:', response.status);
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('❌ Текст ошибки:', errorText);
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
             const result = await response.json();
-            console.log('📦 Данные от сервера:', result);
 
             if (result.success) {
                 displayWeeklyPlan(result.plan);
@@ -334,7 +318,6 @@ function showTrainer() {
                 throw new Error(result.error || 'Ошибка генерации плана');
             }
         } catch (error) {
-            console.error('❌ Ошибка:', error);
             document.getElementById('weeklyPlan').innerHTML = `
                 <div style="text-align:center; padding:20px; background:#1a1510; border-radius:10px">
                     <p style="color:#f44336">❌ Ошибка: ${error.message}</p>
@@ -448,8 +431,9 @@ showWelcome();
 
 // ========== ОТОБРАЖЕНИЕ ПЛАНА ==========
 window.displayWeeklyPlan = function(plan) {
-    console.log('📊 Отображаем план:', plan);
     state.currentPlan = plan;
+
+    const isMobile = window.innerWidth <= 480;
 
     let html = '<div class="plan-container">';
     const days = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
@@ -472,54 +456,85 @@ window.displayWeeklyPlan = function(plan) {
             `;
 
             if (plan[day].exercises.length > 0) {
-                html += `
-                    <div class="workout-table-container">
-                        <table class="workout-table">
-                            <thead>
-                                <tr>
-                                    <th>🏋️ УПРАЖНЕНИЕ</th>
-                                    <th>⚡ ИНТЕНСИВНОСТЬ</th>
-                                    <th>🔄 ПОВТОРЕНИЯ</th>
-                                    <th>⚖️ ВЕС (КГ)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                `;
+                if (isMobile) {
+                    // Мобильная версия - карточки
+                    html += `<div class="mobile-exercises">`;
+                    plan[day].exercises.forEach((ex, idx) => {
+                        let intensity = ex.sets >= 5 ? 'Тяжёлая' : (ex.sets <= 3 ? 'Лёгкая' : 'Средняя');
+                        let intensityClass = ex.sets >= 5 ? 'hard' : (ex.sets <= 3 ? 'easy' : 'medium');
 
-                plan[day].exercises.forEach((ex, idx) => {
-                    let intensity = 'Средняя';
-                    let intensityClass = 'medium-intensity';
+                        html += `
+                            <div class="mobile-exercise-card">
+                                <div class="mobile-exercise-header">
+                                    <span class="mobile-exercise-name">${ex.name}</span>
+                                    <button class="edit-exercise-small" onclick="editExercise('${day}', ${idx})">✎</button>
+                                </div>
+                                <div class="mobile-exercise-details">
+                                    <span class="mobile-intensity ${intensityClass}">${intensity}</span>
+                                    <span class="mobile-reps">${ex.sets}×${ex.reps}</span>
+                                    <span class="mobile-weight">
+                                        <button class="adjust-weight-small" onclick="adjustWeight('${day}', ${idx}, -2.5)">−</button>
+                                        ${ex.weight} кг
+                                        <button class="adjust-weight-small" onclick="adjustWeight('${day}', ${idx}, 2.5)">+</button>
+                                    </span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += `</div>`;
+                } else {
+                    // Десктопная версия - таблица
+                    html += `
+                        <div class="workout-table-container">
+                            <table class="workout-table">
+                                <thead>
+                                    <tr>
+                                        <th>🏋️ УПРАЖНЕНИЕ</th>
+                                        <th>⚡ ИНТЕНСИВНОСТЬ</th>
+                                        <th>🔄 ПОВТОРЕНИЯ</th>
+                                        <th>⚖️ ВЕС (КГ)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
 
-                    if (ex.sets >= 5) {
-                        intensity = 'Тяжёлая';
-                        intensityClass = 'hard-intensity';
-                    } else if (ex.sets <= 3) {
-                        intensity = 'Лёгкая';
-                        intensityClass = 'easy-intensity';
-                    }
+                    plan[day].exercises.forEach((ex, idx) => {
+                        let intensity = 'Средняя';
+                        let intensityClass = 'medium-intensity';
+
+                        if (ex.sets >= 5) {
+                            intensity = 'Тяжёлая';
+                            intensityClass = 'hard-intensity';
+                        } else if (ex.sets <= 3) {
+                            intensity = 'Лёгкая';
+                            intensityClass = 'easy-intensity';
+                        }
+
+                        html += `
+                            <tr>
+                                <td class="exercise-name-cell">
+                                    <span class="exercise-name">${ex.name}</span>
+                                    <button class="edit-exercise-small" onclick="editExercise('${day}', ${idx})">✎</button>
+                                </td>
+                                <td class="intensity-cell ${intensityClass}">${intensity}</td>
+                                <td class="reps-cell">${ex.sets} × ${ex.reps}</td>
+                                <td class="weight-cell">
+                                    <span class="weight-value">${ex.weight}</span>
+                                    <button class="adjust-weight" onclick="adjustWeight('${day}', ${idx}, -2.5)">−</button>
+                                    <button class="adjust-weight" onclick="adjustWeight('${day}', ${idx}, 2.5)">+</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
 
                     html += `
-                        <tr>
-                            <td class="exercise-name-cell">
-                                <span class="exercise-name">${ex.name}</span>
-                                <button class="edit-exercise-small" onclick="editExercise('${day}', ${idx})">✎</button>
-                            </td>
-                            <td class="intensity-cell ${intensityClass}">${intensity}</td>
-                            <td class="reps-cell">${ex.sets} × ${ex.reps}</td>
-                            <td class="weight-cell">
-                                <span class="weight-value">${ex.weight}</span>
-                                <button class="adjust-weight" onclick="adjustWeight('${day}', ${idx}, -2.5)">−</button>
-                                <button class="adjust-weight" onclick="adjustWeight('${day}', ${idx}, 2.5)">+</button>
-                            </td>
-                        </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     `;
-                });
+                }
 
                 html += `
-                            </tbody>
-                        </table>
-                    </div>
-
                     <div class="day-actions">
                         <button class="add-exercise-to-day" onclick="addExerciseToDay('${day}')">
                             ➕ ДОБАВИТЬ УПРАЖНЕНИЕ
@@ -547,7 +562,7 @@ window.displayWeeklyPlan = function(plan) {
     document.getElementById('weeklyPlan').innerHTML = html;
 };
 
-// ========== СТИЛИ ДЛЯ ТАБЛИЦЫ ==========
+// ========== СТИЛИ ДЛЯ ТАБЛИЦЫ И КАРТОЧЕК ==========
 function addTableStyles() {
     if (document.getElementById('table-styles')) return;
 
@@ -555,108 +570,277 @@ function addTableStyles() {
     style.id = 'table-styles';
     style.textContent = `
         .plan-container { padding: 5px; }
+
         .day-card {
             background: linear-gradient(145deg, #1a1510, #0f0c08);
             border: 2px solid #b87333;
             border-radius: 15px;
-            padding: 15px;
+            padding: 12px;
             margin-bottom: 20px;
         }
+
         .day-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
             border-bottom: 2px solid #b87333;
         }
+
         .day-header h3 {
             font-family: 'Cinzel', serif;
             color: #e6c87c;
-            font-size: 18px;
+            font-size: 16px;
             margin: 0;
         }
+
         .workout-badge {
             background: #b87333;
             color: #0a0806;
-            padding: 5px 10px;
+            padding: 4px 8px;
             border-radius: 20px;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
+        .rest-badge {
+            color: #b87333;
+            font-style: italic;
             font-size: 12px;
         }
+
+        .workout-table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin: 10px -5px;
+            padding: 0 5px;
+            border-radius: 8px;
+            background: #0a0806;
+        }
+
         .workout-table {
+            min-width: 500px;
             width: 100%;
             border-collapse: collapse;
-            font-size: 14px;
+            font-size: 13px;
         }
+
         .workout-table th {
             background: #b87333;
             color: #0a0806;
-            padding: 12px 8px;
+            padding: 10px 6px;
             font-family: 'Cinzel', serif;
-            font-size: 12px;
+            font-size: 11px;
             text-align: left;
+            white-space: nowrap;
         }
+
         .workout-table td {
-            padding: 10px 8px;
+            padding: 8px 6px;
             border-bottom: 1px solid #2a2520;
             color: #e0d7c6;
         }
+
+        .exercise-name-cell {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            min-width: 120px;
+        }
+
         .exercise-name {
             color: #e6c87c;
             font-weight: bold;
+            font-size: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100px;
         }
+
         .edit-exercise-small {
             background: none;
             border: 1px solid #b87333;
             border-radius: 4px;
             color: #b87333;
             cursor: pointer;
-            margin-left: 8px;
+            font-size: 11px;
+            padding: 2px 5px;
+            white-space: nowrap;
         }
-        .intensity-cell { font-weight: bold; }
+
+        .intensity-cell {
+            font-weight: bold;
+            font-size: 11px;
+            white-space: nowrap;
+            min-width: 70px;
+        }
+
         .easy-intensity { color: #4caf50; }
         .medium-intensity { color: #ff9800; }
         .hard-intensity { color: #f44336; }
-        .weight-cell { display: flex; align-items: center; gap: 5px; }
-        .weight-value { min-width: 40px; color: #b87333; font-weight: bold; }
+
+        .reps-cell {
+            font-family: monospace;
+            font-size: 12px;
+            font-weight: bold;
+            white-space: nowrap;
+            min-width: 60px;
+        }
+
+        .weight-cell {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            min-width: 80px;
+        }
+
+        .weight-value {
+            min-width: 35px;
+            color: #b87333;
+            font-weight: bold;
+            font-size: 12px;
+            text-align: center;
+        }
+
         .adjust-weight {
             background: none;
             border: 1px solid #b87333;
             border-radius: 4px;
             color: #b87333;
             cursor: pointer;
-            padding: 2px 8px;
+            padding: 2px 6px;
+            font-size: 12px;
+            font-weight: bold;
         }
+
+        /* Мобильные карточки */
+        .mobile-exercises {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 10px 0;
+        }
+
+        .mobile-exercise-card {
+            background: #0a0806;
+            border-left: 3px solid #b87333;
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .mobile-exercise-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .mobile-exercise-name {
+            color: #e6c87c;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .mobile-exercise-details {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .mobile-intensity {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .mobile-intensity.easy { background: #1a3a1a; color: #4caf50; }
+        .mobile-intensity.medium { background: #3a2a1a; color: #ff9800; }
+        .mobile-intensity.hard { background: #3a1a1a; color: #f44336; }
+
+        .mobile-reps {
+            font-family: monospace;
+            font-weight: bold;
+        }
+
+        .mobile-weight {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .adjust-weight-small {
+            background: none;
+            border: 1px solid #b87333;
+            border-radius: 4px;
+            color: #b87333;
+            cursor: pointer;
+            padding: 2px 6px;
+            font-size: 12px;
+        }
+
+        .day-actions {
+            margin-top: 12px;
+        }
+
         .add-exercise-to-day {
             background: none;
             border: 2px dashed #b87333;
             border-radius: 8px;
             color: #b87333;
-            padding: 10px;
+            padding: 8px;
             width: 100%;
             cursor: pointer;
+            font-family: 'Cinzel', serif;
+            font-size: 13px;
+            transition: all 0.3s;
         }
+
+        .add-exercise-to-day:hover {
+            background: #b87333;
+            color: #0a0806;
+            border-style: solid;
+        }
+
         .plan-footer {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 20px;
+            gap: 8px;
+            margin-top: 15px;
         }
+
+        .save-plan-btn, .reset-plan-btn {
+            padding: 10px;
+            border-radius: 8px;
+            font-family: 'Cinzel', serif;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
         .save-plan-btn {
             background: #2c4a3b;
             color: #e3f0da;
             border: 2px solid #7f9a6b;
-            border-radius: 8px;
-            padding: 12px;
-            cursor: pointer;
         }
+
         .reset-plan-btn {
             background: #2a241e;
             color: #e0d7c6;
             border: 2px solid #b87333;
-            border-radius: 8px;
-            padding: 12px;
-            cursor: pointer;
+        }
+
+        .rest-message {
+            text-align: center;
+            color: #e0d7c6;
+            padding: 20px;
+            font-style: italic;
         }
     `;
 
