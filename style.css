@@ -644,3 +644,96 @@ input:focus {
     margin-top: 4px;
     opacity: 0.5;
 }
+/* ========== АДАПТАЦИЯ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ ========== */
+@media screen and (max-width: 480px) {
+    .workout-table {
+        font-size: 12px;
+    }
+
+    .workout-table th,
+    .workout-table td {
+        padding: 8px 4px;
+    }
+
+    .workout-table th {
+        font-size: 10px;
+        white-space: nowrap;
+    }
+
+    .exercise-name {
+        font-size: 12px;
+        max-width: 100px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .exercise-name-cell {
+        max-width: 100px;
+    }
+
+    .reps-cell {
+        font-size: 11px;
+    }
+
+    .weight-cell {
+        gap: 2px;
+    }
+
+    .weight-value {
+        min-width: 30px;
+        font-size: 11px;
+    }
+
+    .adjust-weight {
+        padding: 2px 6px;
+        font-size: 12px;
+    }
+
+    .day-header h3 {
+        font-size: 14px;
+    }
+
+    .workout-badge, .rest-badge {
+        font-size: 10px;
+        padding: 3px 6px;
+    }
+
+    .add-exercise-to-day {
+        font-size: 12px;
+        padding: 8px;
+    }
+
+    .plan-footer {
+        gap: 5px;
+    }
+
+    .save-plan-btn, .reset-plan-btn {
+        font-size: 12px;
+        padding: 10px;
+    }
+}
+
+/* Для очень маленьких экранов */
+@media screen and (max-width: 360px) {
+    .workout-table {
+        font-size: 11px;
+    }
+
+    .workout-table th,
+    .workout-table td {
+        padding: 6px 2px;
+    }
+
+    .exercise-name {
+        max-width: 80px;
+    }
+
+    .weight-value {
+        min-width: 25px;
+    }
+
+    .adjust-weight {
+        padding: 2px 4px;
+    }
+}
